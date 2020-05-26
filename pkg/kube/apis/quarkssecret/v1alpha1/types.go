@@ -4,9 +4,10 @@ import (
 	"fmt"
 
 	certv1 "k8s.io/api/certificates/v1beta1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"code.cloudfoundry.org/quarks-operator/pkg/kube/apis"
+	apis "code.cloudfoundry.org/quarks-secret/pkg/kube/apis"
 )
 
 // This file is safe to edit
@@ -38,6 +39,9 @@ const (
 var (
 	// LabelKind is the label key for secret kind
 	LabelKind = fmt.Sprintf("%s/secret-kind", apis.GroupName)
+	// LabelNamespace key for label on a namespace to indicate that cf-operator is monitoring it.
+	// Can be used as an ID, to keep operators in a cluster from intefering with each other.
+	LabelNamespace = fmt.Sprintf("%s/monitored", apis.GroupName)
 	// AnnotationCopyOf is a label key for secrets that are copies of generated secrets
 	AnnotationCopyOf = fmt.Sprintf("%s/secret-copy-of", apis.GroupName)
 	// AnnotationCertSecretName is the annotation key for certificate secret name
@@ -130,9 +134,8 @@ type QuarksSecret struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec         QuarksSecretSpec   `json:"spec,omitempty"`
-	Status       QuarksSecretStatus `json:"status,omitempty"`
-	SecretLabels map[string]string  `json:"secretLabels,omitempty"`
+	Spec   QuarksSecretSpec   `json:"spec,omitempty"`
+	Status QuarksSecretStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -147,4 +150,13 @@ type QuarksSecretList struct {
 // GetNamespacedName returns the resource name with its namespace
 func (qs *QuarksSecret) GetNamespacedName() string {
 	return fmt.Sprintf("%s/%s", qs.Namespace, qs.Name)
+}
+
+// IsMonitoredNamespace returns true if the namespace has all the necessary
+// labels and should be included in controller watches.
+func IsMonitoredNamespace(n *corev1.Namespace, id string) bool {
+	if value, ok := n.Labels[LabelNamespace]; ok && value == id {
+		return true
+	}
+	return false
 }

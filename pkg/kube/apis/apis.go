@@ -14,7 +14,7 @@ const (
 	//
 	//   ---
 	//   apiVersion: quarks.cloudfoundry.org/v1alpha1
-	//   kind: BOSHDeployment
+	//   kind: QuarksSecret
 	//   ...
 	GroupName = names.GroupName
 )

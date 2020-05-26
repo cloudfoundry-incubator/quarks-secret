@@ -5,31 +5,17 @@ import (
 
 	"github.com/pkg/errors"
 
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	extv1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	qjv1a1 "code.cloudfoundry.org/quarks-job/pkg/kube/apis/quarksjob/v1alpha1"
-	credsgen "code.cloudfoundry.org/quarks-operator/pkg/credsgen/in_memory_generator"
-	bdv1 "code.cloudfoundry.org/quarks-operator/pkg/kube/apis/boshdeployment/v1alpha1"
-	qsv1a1 "code.cloudfoundry.org/quarks-operator/pkg/kube/apis/quarkssecret/v1alpha1"
-	qstsv1a1 "code.cloudfoundry.org/quarks-operator/pkg/kube/apis/quarksstatefulset/v1alpha1"
-	"code.cloudfoundry.org/quarks-operator/pkg/kube/controllers"
 	"code.cloudfoundry.org/quarks-utils/pkg/config"
 	"code.cloudfoundry.org/quarks-utils/pkg/crd"
 	"code.cloudfoundry.org/quarks-utils/pkg/ctxlog"
-)
 
-type resource struct {
-	name         string
-	kind         string
-	plural       string
-	shortNames   []string
-	groupVersion schema.GroupVersion
-	validation   *extv1.CustomResourceValidation
-}
+	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
+	"code.cloudfoundry.org/quarks-secret/pkg/kube/controllers"
+)
 
 // NewManager adds schemes, controllers and starts the manager
 func NewManager(ctx context.Context, config *config.Config, cfg *rest.Config, options manager.Options) (manager.Manager, error) {
@@ -48,12 +34,6 @@ func NewManager(ctx context.Context, config *config.Config, cfg *rest.Config, op
 		return nil, errors.Wrap(err, "failed to add manager scheme to controllers")
 	}
 
-	// Setup Hooks for all resources
-	err = controllers.AddHooks(ctx, config, mgr, credsgen.NewInMemoryGenerator(log))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to setup hooks")
-	}
-
 	// Setup all Controllers
 	err = controllers.AddToManager(ctx, config, mgr)
 	if err != nil {
@@ -70,57 +50,22 @@ func ApplyCRDs(ctx context.Context, config *rest.Config) error {
 		return errors.Wrap(err, "Could not get kube client")
 	}
 
-	for _, res := range []resource{
-		{
-			bdv1.BOSHDeploymentResourceName,
-			bdv1.BOSHDeploymentResourceKind,
-			bdv1.BOSHDeploymentResourcePlural,
-			bdv1.BOSHDeploymentResourceShortNames,
-			bdv1.SchemeGroupVersion,
-			&bdv1.BOSHDeploymentValidation,
-		},
-		{
-			qjv1a1.QuarksJobResourceName,
-			qjv1a1.QuarksJobResourceKind,
-			qjv1a1.QuarksJobResourcePlural,
-			qjv1a1.QuarksJobResourceShortNames,
-			qjv1a1.SchemeGroupVersion,
-			&qjv1a1.QuarksJobValidation,
-		},
-		{
-			qsv1a1.QuarksSecretResourceName,
-			qsv1a1.QuarksSecretResourceKind,
-			qsv1a1.QuarksSecretResourcePlural,
-			qsv1a1.QuarksSecretResourceShortNames,
-			qsv1a1.SchemeGroupVersion,
-			&qsv1a1.QuarksSecretValidation,
-		},
-		{
-			qstsv1a1.QuarksStatefulSetResourceName,
-			qstsv1a1.QuarksStatefulSetResourceKind,
-			qstsv1a1.QuarksStatefulSetResourcePlural,
-			qstsv1a1.QuarksStatefulSetResourceShortNames,
-			qstsv1a1.SchemeGroupVersion,
-			&qstsv1a1.QuarksStatefulSetValidation,
-		},
-	} {
-		err = crd.ApplyCRD(
-			ctx,
-			exClient,
-			res.name,
-			res.kind,
-			res.plural,
-			res.shortNames,
-			res.groupVersion,
-			res.validation,
-		)
-		if err != nil {
-			return errors.Wrapf(err, "failed to apply CRD '%s'", res.name)
-		}
-		err = crd.WaitForCRDReady(ctx, exClient, res.name)
-		if err != nil {
-			return errors.Wrapf(err, "failed to wait for CRD '%s' ready", res.name)
-		}
+	err = crd.ApplyCRD(
+		ctx,
+		exClient,
+		qsv1a1.QuarksSecretResourceName,
+		qsv1a1.QuarksSecretResourceKind,
+		qsv1a1.QuarksSecretResourcePlural,
+		qsv1a1.QuarksSecretResourceShortNames,
+		qsv1a1.SchemeGroupVersion,
+		&qsv1a1.QuarksSecretValidation,
+	)
+	if err != nil {
+		return errors.Wrapf(err, "failed to apply CRD '%s'", qsv1a1.QuarksSecretResourceName)
+	}
+	err = crd.WaitForCRDReady(ctx, exClient, qsv1a1.QuarksSecretResourceName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to wait for CRD '%s' ready", qsv1a1.QuarksSecretResourceName)
 	}
 
 	return nil
