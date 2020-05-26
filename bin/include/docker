@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [ -z ${DOCKER_IMAGE_ORG+x} ]; then
+  DOCKER_IMAGE_ORG="cfcontainerization"
+  export DOCKER_IMAGE_ORG
+fi
+
+if [ -z ${DOCKER_IMAGE_TAG+x} ]; then
+  DOCKER_IMAGE_TAG="$ARTIFACT_VERSION"
+  export DOCKER_IMAGE_TAG
+fi
+
+if [ -z ${DOCKER_IMAGE_REPOSITORY+x} ]; then
+  DOCKER_IMAGE_REPOSITORY="quarks-secret"
+  export DOCKER_IMAGE_REPOSITORY
+fi

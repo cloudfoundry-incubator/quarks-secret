@@ -1,0 +1,33 @@
+#!/bin/bash
+
+INTEGRATION_TESTS_PACKAGE="code.cloudfoundry.org/quarks-secret/cmd/...,\
+code.cloudfoundry.org/quarks-secret/pkg/kube/operator/...,\
+code.cloudfoundry.org/quarks-secret/pkg/kube/util/...,\
+code.cloudfoundry.org/quarks-secret/pkg/kube/controllers/..."
+
+function setup_testing_tmp {
+  if [ -z ${CF_OPERATOR_TESTING_TMP+x} ]
+  then
+    echo "[Error] Env variable \$CF_OPERATOR_TESTING_TMP is not set. Please set to continue."
+    exit 1
+  fi
+
+  SKIP_CF_OPERATOR_TESTING_TMP_CLEANUP=${SKIP_CF_OPERATOR_TESTING_TMP_CLEANUP:-}
+  if [ "$SKIP_CF_OPERATOR_TESTING_TMP_CLEANUP" != "true" ]
+  then
+    echo "${CF_OPERATOR_TESTING_TMP} will be cleaned up after the tests. Set SKIP_CF_OPERATOR_TESTING_TMP_CLEANUP=true to skip cleanup."
+  fi
+
+  mkdir -p "${CF_OPERATOR_TESTING_TMP}"
+}
+
+function cleanup_testing_tmp {
+  if [ "$SKIP_CF_OPERATOR_TESTING_TMP_CLEANUP" == "true" ]
+  then
+    echo "Skipping cleanup of ${CF_OPERATOR_TESTING_TMP}."
+    return
+  fi
+
+  echo "Cleaning up ${CF_OPERATOR_TESTING_TMP}. To skip cleanup set SKIP_CF_OPERATOR_TESTING_TMP_CLEANUP=true"
+  rm -rf "${CF_OPERATOR_TESTING_TMP}"/cf-operator-test*
+}

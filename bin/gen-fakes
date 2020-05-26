@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+
+[ ! -d "vendor" ] && echo "$0 requires vendor/ folder, run 'go mod vendor'"
+
+counterfeiter -o pkg/kube/controllers/fakes/client.go vendor/sigs.k8s.io/controller-runtime/pkg/client Client
+counterfeiter -o pkg/kube/controllers/fakes/manager.go vendor/sigs.k8s.io/controller-runtime/pkg/manager Manager
+counterfeiter -o pkg/kube/controllers/fakes/status_writer.go vendor/sigs.k8s.io/controller-runtime/pkg/client StatusWriter
+counterfeiter -o pkg/credsgen/fakes/generator.go pkg/credsgen/ Generator
