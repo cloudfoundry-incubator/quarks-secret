@@ -20,11 +20,9 @@ var (
 	cliPath string
 )
 
-const assetPath = "../../testing/assets"
-
 var _ = BeforeSuite(func() {
 	var err error
-	cliPath, err = gexec.Build("code.cloudfoundry.org/quarks-operator/cmd/cf-operator")
+	cliPath, err = gexec.Build("code.cloudfoundry.org/quarks-secret/cmd")
 	Expect(err).ToNot(HaveOccurred())
 })
 

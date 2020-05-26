@@ -9,7 +9,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	cmdHelper "code.cloudfoundry.org/quarks-utils/testing"
 	"code.cloudfoundry.org/quarks-utils/testing/e2ehelper"
 )
 
@@ -20,7 +19,6 @@ var (
 	teardowns         []e2ehelper.TearDownFunc
 	namespace         string
 	operatorNamespace string
-	kubectl           *cmdHelper.Kubectl
 )
 
 func FailAndCollectDebugInfo(description string, callerSkip ...int) {
@@ -48,7 +46,7 @@ var _ = BeforeEach(func() {
 	dir, err := os.Getwd()
 	Expect(err).ToNot(HaveOccurred())
 
-	chartPath := fmt.Sprintf("%s%s", dir, "/../../helm/cf-operator")
+	chartPath := fmt.Sprintf("%s%s", dir, "/../../helm/quarks-secret")
 
 	namespace, operatorNamespace, teardown, err = e2ehelper.CreateNamespace()
 	Expect(err).ToNot(HaveOccurred())
@@ -56,8 +54,6 @@ var _ = BeforeEach(func() {
 
 	teardown, err = e2ehelper.InstallChart(chartPath, operatorNamespace,
 		"--set", fmt.Sprintf("global.singleNamespace.name=%s", namespace),
-		"--set", fmt.Sprintf("global.monitoredID=%s", namespace),
-		"--set", fmt.Sprintf("quarks-job.persistOutputClusterRole.name=%s", namespace),
 	)
 	Expect(err).ToNot(HaveOccurred())
 	// prepend helm clean up
@@ -67,8 +63,3 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() {
 	e2ehelper.TearDownAll(teardowns)
 })
-
-func podWait(name string) {
-	err := kubectl.Wait(namespace, "ready", name, kubectl.PollTimeout)
-	Expect(err).ToNot(HaveOccurred())
-}
