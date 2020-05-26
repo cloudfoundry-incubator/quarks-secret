@@ -1,17 +1,19 @@
 package environment
 
+// The functions in this file are only used by the extended secret component
+// tests.  They were split off in preparation for standalone components.
+
 import (
 	"context"
 
 	"github.com/pkg/errors"
 
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"code.cloudfoundry.org/quarks-operator/pkg/kube/client/clientset/versioned"
+	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
+	"code.cloudfoundry.org/quarks-secret/pkg/kube/client/clientset/versioned"
 	"code.cloudfoundry.org/quarks-utils/testing/machine"
 )
 
@@ -22,12 +24,12 @@ type Machine struct {
 	VersionedClientset *versioned.Clientset
 }
 
-// CreateStatefulSet creates a statefulset and returns a function to delete it
-func (m *Machine) CreateStatefulSet(namespace string, res appsv1.StatefulSet) (machine.TearDownFunc, error) {
-	client := m.Clientset.AppsV1().StatefulSets(namespace)
-	_, err := client.Create(context.Background(), &res, metav1.CreateOptions{})
-	return func() error {
-		err := client.Delete(context.Background(), res.GetName(), metav1.DeleteOptions{})
+// CreateQuarksSecret creates a QuarksSecret custom resource and returns a function to delete it
+func (m *Machine) CreateQuarksSecret(namespace string, qs qsv1a1.QuarksSecret) (*qsv1a1.QuarksSecret, machine.TearDownFunc, error) {
+	client := m.VersionedClientset.QuarkssecretV1alpha1().QuarksSecrets(namespace)
+	d, err := client.Create(context.Background(), &qs, metav1.CreateOptions{})
+	return d, func() error {
+		err := client.Delete(context.Background(), qs.GetName(), metav1.DeleteOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
@@ -35,66 +37,27 @@ func (m *Machine) CreateStatefulSet(namespace string, res appsv1.StatefulSet) (m
 	}, err
 }
 
-// CreateDeployment creates a statefulset and returns a function to delete it
-func (m *Machine) CreateDeployment(namespace string, res appsv1.Deployment) (machine.TearDownFunc, error) {
-	client := m.Clientset.AppsV1().Deployments(namespace)
-	_, err := client.Create(context.Background(), &res, metav1.CreateOptions{})
-	return func() error {
-		err := client.Delete(context.Background(), res.GetName(), metav1.DeleteOptions{})
-		if err != nil && !apierrors.IsNotFound(err) {
-			return err
-		}
-		return nil
-	}, err
+// DeleteQuarksSecret deletes an QuarksSecret custom resource
+func (m *Machine) DeleteQuarksSecret(namespace string, name string) error {
+	client := m.VersionedClientset.QuarkssecretV1alpha1().QuarksSecrets(namespace)
+	return client.Delete(context.Background(), name, metav1.DeleteOptions{})
 }
 
-// CollectStatefulSet waits for statefulset with generation > x to appear, then returns it
-func (m *Machine) CollectStatefulSet(namespace string, name string, generation int64) (*appsv1.StatefulSet, error) {
-	err := m.WaitForStatefulSetNewGeneration(namespace, name, generation)
-	if err != nil {
-		return nil, errors.Wrap(err, "waiting for statefulset "+name)
-	}
-	return m.GetStatefulSet(namespace, name)
-}
+// QuarksSecretChangedFunc returns true if something changed in the quarks secret
+type QuarksSecretChangedFunc func(qsv1a1.QuarksSecret) bool
 
-// WaitForDeployment waits for deployment with generation > x to appear
-func (m *Machine) WaitForDeployment(namespace string, name string, generation int64) error {
-	client := m.Clientset.AppsV1().Deployments(namespace)
+// WaitForQuarksSecretChange waits for the quarks secret to fulfill the change func
+func (m *Machine) WaitForQuarksSecretChange(namespace string, name string, changed QuarksSecretChangedFunc) error {
 	return wait.PollImmediate(m.PollInterval, m.PollTimeout, func() (bool, error) {
-		d, err := client.Get(context.Background(), name, metav1.GetOptions{})
+		client := m.VersionedClientset.QuarkssecretV1alpha1().QuarksSecrets(namespace)
+		qs, err := client.Get(context.Background(), name, metav1.GetOptions{})
 		if err != nil {
-			return false, errors.Wrapf(err, "failed to query for deployment by name: %v", name)
+			if apierrors.IsNotFound(err) {
+				return false, nil
+			}
+			return false, errors.Wrapf(err, "failed to query for quarks secret: %s", name)
 		}
 
-		if d.Status.ReadyReplicas != *d.Spec.Replicas {
-			return false, nil
-		}
-
-		if d.Status.ObservedGeneration > generation {
-			return true, nil
-		}
-
-		return false, nil
+		return changed(*qs), nil
 	})
-}
-
-// CollectDeployment waits for deployment with generation > x to appear, then returns it
-func (m *Machine) CollectDeployment(namespace string, name string, generation int64) (*appsv1.Deployment, error) {
-	client := m.Clientset.AppsV1().Deployments(namespace)
-	err := m.WaitForDeployment(namespace, name, generation)
-	if err != nil {
-		return nil, errors.Wrap(err, "waiting for deployment "+name)
-	}
-	return client.Get(context.Background(), name, metav1.GetOptions{})
-}
-
-// EnvKeys returns an array of all env key names found in containers
-func (m *Machine) EnvKeys(containers []corev1.Container) []string {
-	envKeys := []string{}
-	for _, c := range containers {
-		for _, e := range c.Env {
-			envKeys = append(envKeys, e.Name)
-		}
-	}
-	return envKeys
 }
