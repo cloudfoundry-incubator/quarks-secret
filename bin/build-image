@@ -6,7 +6,7 @@ GIT_ROOT="${GIT_ROOT:-$(git rev-parse --show-toplevel)}"
 . "${GIT_ROOT}/bin/include/versioning"
 . "${GIT_ROOT}/bin/include/docker"
 
-image="${DOCKER_IMAGE_ORG}/cf-operator:${DOCKER_IMAGE_TAG}"
+image="${DOCKER_IMAGE_ORG}/quarks-secret:${DOCKER_IMAGE_TAG}"
 
 # in case you're using vendor this script should not remove it
 created_vendor=0
@@ -33,10 +33,7 @@ if [ "$created_vendor" == 1 ]; then
   rm -fr vendor
 fi
 
-if [ -n "${SAVE_TARBALL}" ] && [[ "${SAVE_TARBALL}" == "true" ]]; then
-  dst_dir="${GIT_ROOT}/binaries"
-  mkdir -p "${dst_dir}"
-  dst_file="${dst_dir}/cf-operator-image.tgz"
-  docker save "${image}" --output "${dst_file}"
-  echo "Saved ${image} to ${dst_file}"
+if [ -n "$USE_KIND" ]; then
+  cluster_name=$(kubectl config current-context | sed 's/^kind-//')
+  kind load docker-image "$image" --name "$cluster_name"
 fi
