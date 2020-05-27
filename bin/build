@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -euo pipefail
+
+GIT_ROOT=${GIT_ROOT:-$(git rev-parse --show-toplevel)}
+. "${GIT_ROOT}/bin/include/versioning"
+
+BASEDIR="$(cd "$(dirname "$0")/.." && pwd)"
+CGO_ENABLED=0 go build -o "${BASEDIR}/binaries/quarks-secret" -ldflags="-X code.cloudfoundry.org/quarks-secret/version.Version=${ARTIFACT_VERSION}" cmd/main.go

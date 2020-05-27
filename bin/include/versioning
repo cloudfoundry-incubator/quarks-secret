@@ -1,0 +1,26 @@
+#!/bin/bash
+
+GITHUB_ACTION_BRANCH=${GITHUB_ACTION_BRANCH-}
+GITHUB_COMMIT_SHA=${GITHUB_SHA-}
+COMMIT_NUMBER=$(git rev-list --first-parent --count HEAD)
+
+# https://semver.org/#semantic-versioning-200
+
+if [ "$GITHUB_ACTION_BRANCH" = "master" ]; then
+  # github action is building on master
+  # unlike quarks-operator do not set a build identifier
+  ARTIFACT_VERSION="v1.0.$COMMIT_NUMBER"
+
+elif [ -n "${GITHUB_ACTION_BRANCH:-}" ]; then
+  # this is running on a github actions push
+  # return pre-release version
+  sha=$(git rev-parse --short "$GITHUB_COMMIT_SHA")
+  ARTIFACT_VERSION="v0.0.$COMMIT_NUMBER-g$sha"
+
+else
+  # return pre-release version
+  COMMIT=$(git describe --tags --long --always | awk -F - '{ print $NF }')
+  ARTIFACT_VERSION="v0.0.$COMMIT_NUMBER-$COMMIT"
+fi
+
+export ARTIFACT_VERSION
