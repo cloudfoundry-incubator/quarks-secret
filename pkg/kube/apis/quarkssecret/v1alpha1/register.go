@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	apis "code.cloudfoundry.org/quarks-operator/pkg/kube/apis"
+	apis "code.cloudfoundry.org/quarks-secret/pkg/kube/apis"
 	"code.cloudfoundry.org/quarks-utils/pkg/pointers"
 )
 

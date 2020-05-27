@@ -14,8 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	qsv1a1 "code.cloudfoundry.org/quarks-operator/pkg/kube/apis/quarkssecret/v1alpha1"
-	"code.cloudfoundry.org/quarks-operator/pkg/kube/util/monitorednamespace"
+	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
 	"code.cloudfoundry.org/quarks-utils/pkg/config"
 	"code.cloudfoundry.org/quarks-utils/pkg/ctxlog"
 )
@@ -34,7 +33,7 @@ func AddSecretRotation(ctx context.Context, config *config.Config, mgr manager.M
 		return errors.Wrap(err, "Adding quarks secret controller to manager failed.")
 	}
 
-	nsPred := monitorednamespace.NewNSPredicate(ctx, mgr.GetClient(), config.MonitoredID)
+	nsPred := newNSPredicate(ctx, mgr.GetClient(), config.MonitoredID)
 
 	// Watch for changes to QuarksSecrets
 	p := predicate.Funcs{

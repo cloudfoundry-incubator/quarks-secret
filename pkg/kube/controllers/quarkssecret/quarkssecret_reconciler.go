@@ -20,9 +20,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"code.cloudfoundry.org/quarks-operator/pkg/credsgen"
-	qsv1a1 "code.cloudfoundry.org/quarks-operator/pkg/kube/apis/quarkssecret/v1alpha1"
-	"code.cloudfoundry.org/quarks-operator/pkg/kube/util/mutate"
+	"code.cloudfoundry.org/quarks-secret/pkg/credsgen"
+	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
+	"code.cloudfoundry.org/quarks-secret/pkg/kube/util/mutate"
 	"code.cloudfoundry.org/quarks-utils/pkg/config"
 	"code.cloudfoundry.org/quarks-utils/pkg/ctxlog"
 	"code.cloudfoundry.org/quarks-utils/pkg/meltdown"
@@ -100,6 +100,7 @@ func (r *ReconcileQuarksSecret) Reconcile(request reconcile.Request) (reconcile.
 		ctxlog.Info(ctx, "Error reading the object")
 		return reconcile.Result{}, errors.Wrap(err, "Error reading quarksSecret")
 	}
+
 	if meltdown.NewWindow(r.config.MeltdownDuration, qsec.Status.LastReconcile).Contains(time.Now()) {
 		ctxlog.WithEvent(qsec, "Meltdown").Debugf(ctx, "Resource '%s' is in meltdown, requeue reconcile after %s", qsec.GetNamespacedName(), r.config.MeltdownRequeueAfter)
 		return reconcile.Result{RequeueAfter: r.config.MeltdownRequeueAfter}, nil
@@ -143,6 +144,7 @@ func (r *ReconcileQuarksSecret) Reconcile(request reconcile.Request) (reconcile.
 		err = ctxlog.WithEvent(qsec, "InvalidTypeError").Errorf(ctx, "Invalid type: %s", qsec.Spec.Type)
 		return reconcile.Result{}, err
 	}
+
 	r.updateStatus(ctx, qsec)
 	return reconcile.Result{}, nil
 }
@@ -166,7 +168,6 @@ func (r *ReconcileQuarksSecret) createPasswordSecret(ctx context.Context, qsec *
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      qsec.Spec.SecretName,
 			Namespace: qsec.GetNamespace(),
-			Labels:    qsec.Spec.SecretLabels,
 		},
 		StringData: map[string]string{
 			"password": password,
@@ -186,7 +187,6 @@ func (r *ReconcileQuarksSecret) createRSASecret(ctx context.Context, qsec *qsv1a
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      qsec.Spec.SecretName,
 			Namespace: qsec.GetNamespace(),
-			Labels:    qsec.Spec.SecretLabels,
 		},
 		StringData: map[string]string{
 			"private_key": string(key.PrivateKey),
@@ -202,12 +202,10 @@ func (r *ReconcileQuarksSecret) createSSHSecret(ctx context.Context, qsec *qsv1a
 	if err != nil {
 		return err
 	}
-
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      qsec.Spec.SecretName,
 			Namespace: qsec.GetNamespace(),
-			Labels:    qsec.Spec.SecretLabels,
 		},
 		StringData: map[string]string{
 			"private_key":            string(key.PrivateKey),
@@ -279,7 +277,6 @@ func (r *ReconcileQuarksSecret) createCertificateSecret(ctx context.Context, qse
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      names.CsrPrivateKeySecretName(names.CSRName(qsec.Namespace, qsec.Name)),
 				Namespace: qsec.GetNamespace(),
-				Labels:    qsec.Spec.SecretLabels,
 			},
 			StringData: map[string]string{
 				"private_key": string(key),
@@ -303,7 +300,6 @@ func (r *ReconcileQuarksSecret) createCertificateSecret(ctx context.Context, qse
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      qsec.Spec.SecretName,
 				Namespace: qsec.GetNamespace(),
-				Labels:    qsec.Spec.SecretLabels,
 			},
 			StringData: map[string]string{
 				"certificate": string(cert.Certificate),

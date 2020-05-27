@@ -18,13 +18,13 @@ import (
 	crc "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"code.cloudfoundry.org/quarks-operator/pkg/credsgen"
-	generatorfakes "code.cloudfoundry.org/quarks-operator/pkg/credsgen/fakes"
-	qsv1a1 "code.cloudfoundry.org/quarks-operator/pkg/kube/apis/quarkssecret/v1alpha1"
-	"code.cloudfoundry.org/quarks-operator/pkg/kube/client/clientset/versioned/scheme"
-	"code.cloudfoundry.org/quarks-operator/pkg/kube/controllers"
-	cfakes "code.cloudfoundry.org/quarks-operator/pkg/kube/controllers/fakes"
-	qscontroller "code.cloudfoundry.org/quarks-operator/pkg/kube/controllers/quarkssecret"
+	"code.cloudfoundry.org/quarks-secret/pkg/credsgen"
+	generatorfakes "code.cloudfoundry.org/quarks-secret/pkg/credsgen/fakes"
+	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
+	"code.cloudfoundry.org/quarks-secret/pkg/kube/client/clientset/versioned/scheme"
+	"code.cloudfoundry.org/quarks-secret/pkg/kube/controllers"
+	cfakes "code.cloudfoundry.org/quarks-secret/pkg/kube/controllers/fakes"
+	qscontroller "code.cloudfoundry.org/quarks-secret/pkg/kube/controllers/quarkssecret"
 	cfcfg "code.cloudfoundry.org/quarks-utils/pkg/config"
 	"code.cloudfoundry.org/quarks-utils/pkg/ctxlog"
 	"code.cloudfoundry.org/quarks-utils/pkg/pointers"
@@ -60,9 +60,6 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 			Spec: qsv1a1.QuarksSecretSpec{
 				Type:       "password",
 				SecretName: "generated-secret",
-				SecretLabels: map[string]string{
-					"Label": "generated-label",
-				},
 			},
 		}
 		generator = &generatorfakes.FakeGenerator{}
@@ -87,6 +84,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 	Context("if the resource can not be resolved", func() {
 		It("skips if the resource was not found", func() {
 			client.GetReturns(errors.NewNotFound(schema.GroupResource{}, "not found is requeued"))
+
 			result, err := reconciler.Reconcile(request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(reconcile.Result{}).To(Equal(result))
@@ -144,8 +142,6 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 				Expect(secret.StringData["password"]).To(Equal("securepassword"))
 				Expect(secret.GetName()).To(Equal("generated-secret"))
 				Expect(secret.GetLabels()).To(HaveKeyWithValue(qsv1a1.LabelKind, qsv1a1.GeneratedSecretKind))
-				Expect(secret.GetLabels()).To(HaveKeyWithValue("Label", "generated-label"))
-
 				return nil
 			})
 
@@ -170,7 +166,6 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 				Expect(secret.StringData["public_key"]).To(Equal("public"))
 				Expect(secret.GetName()).To(Equal("generated-secret"))
 				Expect(secret.GetLabels()).To(HaveKeyWithValue(qsv1a1.LabelKind, qsv1a1.GeneratedSecretKind))
-				Expect(secret.GetLabels()).To(HaveKeyWithValue("Label", "generated-label"))
 				return nil
 			})
 
@@ -200,7 +195,6 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 				Expect(secret.StringData["public_key_fingerprint"]).To(Equal("fingerprint"))
 				Expect(secret.GetName()).To(Equal("generated-secret"))
 				Expect(secret.GetLabels()).To(HaveKeyWithValue(qsv1a1.LabelKind, qsv1a1.GeneratedSecretKind))
-				Expect(secret.GetLabels()).To(HaveKeyWithValue("Label", "generated-label"))
 				return nil
 			})
 
@@ -272,7 +266,6 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 						Expect(secret.StringData["private_key"]).To(Equal("private_key"))
 						Expect(secret.StringData["ca"]).To(Equal("theca"))
 						Expect(secret.GetLabels()).To(HaveKeyWithValue(qsv1a1.LabelKind, qsv1a1.GeneratedSecretKind))
-						Expect(secret.GetLabels()).To(HaveKeyWithValue("Label", "generated-label"))
 						return nil
 					})
 
@@ -295,7 +288,6 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 						Expect(secret.StringData["private_key"]).To(Equal("private_key"))
 						Expect(secret.StringData["ca"]).To(Equal("theca"))
 						Expect(secret.GetLabels()).To(HaveKeyWithValue(qsv1a1.LabelKind, qsv1a1.GeneratedSecretKind))
-						Expect(secret.GetLabels()).To(HaveKeyWithValue("Label", "generated-label"))
 						return nil
 					})
 
@@ -326,7 +318,6 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 						Expect(secret.StringData["private_key"]).To(Equal("private_key"))
 						Expect(secret.StringData["ca"]).To(Equal("theca"))
 						Expect(secret.GetLabels()).To(HaveKeyWithValue(qsv1a1.LabelKind, qsv1a1.GeneratedSecretKind))
-						Expect(secret.GetLabels()).To(HaveKeyWithValue("Label", "generated-label"))
 						return nil
 					})
 
@@ -508,8 +499,9 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 		})
 
 		It("Regenerates a secret when the existing secret has a `generated` label", func() {
-			qSecret.Spec.SecretLabels[qsv1a1.LabelKind] = qsv1a1.GeneratedSecretKind
-			secret.Labels = qSecret.Spec.SecretLabels
+			secret.Labels = map[string]string{
+				qsv1a1.LabelKind: qsv1a1.GeneratedSecretKind,
+			}
 
 			client.UpdateCalls(func(context context.Context, object runtime.Object, _ ...crc.UpdateOption) error {
 				switch object := object.(type) {
@@ -519,7 +511,6 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 					Expect(object.StringData["password"]).To(Equal(password))
 					Expect(object.GetName()).To(Equal("mysecret"))
 					Expect(object.GetLabels()).To(HaveKeyWithValue(qsv1a1.LabelKind, qsv1a1.GeneratedSecretKind))
-					Expect(secret.GetLabels()).To(HaveKeyWithValue("Label", "generated-label"))
 				}
 				return nil
 			})

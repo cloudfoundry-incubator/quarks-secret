@@ -1,12 +1,11 @@
 # Temporary Build Files
-/cf-operator
 /binaries
+/helm
 # Temp dir for generated kube files
 /_tmp
-/helm
 /vendor
 
-# Dir to store dependencies (quarks-utils)
+# Tools fetched in runtime
 /tools/
 
 # Created by https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
@@ -85,7 +84,5 @@ tags
 ### IDEA ###
 .idea/
 
-/tmp/
 *.coverprofile
 .envrc
-testing/assets/output.json

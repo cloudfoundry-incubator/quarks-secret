@@ -2,30 +2,29 @@ package environment
 
 import (
 	"context"
-	"fmt"
-	"os"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	gomegaConfig "github.com/onsi/ginkgo/config"
+	"github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc" //from https://github.com/kubernetes/client-go/issues/345
 	"k8s.io/client-go/rest"
 
-	"code.cloudfoundry.org/quarks-operator/pkg/kube/client/clientset/versioned"
-	"code.cloudfoundry.org/quarks-operator/pkg/kube/operator"
-	"code.cloudfoundry.org/quarks-operator/testing"
+	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
+	"code.cloudfoundry.org/quarks-secret/pkg/kube/client/clientset/versioned"
+	"code.cloudfoundry.org/quarks-secret/pkg/kube/operator"
+	"code.cloudfoundry.org/quarks-secret/testing"
 	"code.cloudfoundry.org/quarks-utils/pkg/config"
+	"code.cloudfoundry.org/quarks-utils/pkg/names"
 	utils "code.cloudfoundry.org/quarks-utils/testing/integration"
 	"code.cloudfoundry.org/quarks-utils/testing/machine"
 )
 
-// Environment starts our operator and handles interaction with the k8s
-// cluster used in the tests
+// Environment test env with helpers to create structs and k8s resources
 type Environment struct {
 	*utils.Environment
 	Machine
@@ -36,31 +35,25 @@ var (
 	namespaceCounter int32
 )
 
-const (
-	defaultTestMeltdownDuration     = 10
-	defaultTestMeltdownRequeueAfter = 1
-)
-
-// NewEnvironment returns a new struct
+// NewEnvironment returns a new test environment
 func NewEnvironment(kubeConfig *rest.Config) *Environment {
 	atomic.AddInt32(&namespaceCounter, 1)
 	namespaceID := gomegaConfig.GinkgoConfig.ParallelNode*100 + int(namespaceCounter)
-	// the single namespace used by this test
-	ns := utils.GetNamespaceName(namespaceID)
+	ns, _ := names.JobName(utils.GetNamespaceName(namespaceID))
 
+	shared := &config.Config{
+		CtxTimeOut:           10 * time.Second,
+		MeltdownDuration:     1 * time.Second,
+		MeltdownRequeueAfter: 500 * time.Millisecond,
+		Fs:                   afero.NewOsFs(),
+		MonitoredID:          ns,
+	}
 	return &Environment{
 		Environment: &utils.Environment{
 			ID:         namespaceID,
 			Namespace:  ns,
 			KubeConfig: kubeConfig,
-			Config: &config.Config{
-				CtxTimeOut:           10 * time.Second,
-				MeltdownDuration:     defaultTestMeltdownDuration * time.Second,
-				MeltdownRequeueAfter: defaultTestMeltdownRequeueAfter * time.Second,
-				MonitoredID:          ns,
-				OperatorNamespace:    ns,
-				Fs:                   afero.NewOsFs(),
-			},
+			Config:     shared,
 		},
 		Machine: Machine{
 			Machine: machine.NewMachine(),
@@ -84,28 +77,37 @@ func (e *Environment) SetupClientsets() error {
 	return nil
 }
 
-// NodeIP returns a public IP of a node
-func (e *Environment) NodeIP() (string, error) {
-	if override, ok := os.LookupEnv("CF_OPERATOR_NODE_IP"); ok {
-		// The user has specified a particular node IP to use; return that.
-		return override, nil
-	}
+// NamespaceDeletionInProgress returns true if the error indicates deletion will happen
+// eventually
+func (e *Environment) NamespaceDeletionInProgress(err error) bool {
+	return strings.Contains(err.Error(), "namespace will automatically be purged")
+}
 
-	nodes, err := e.Clientset.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
+// SetupNamespace creates the namespace and the clientsets and prepares the teardowm
+func (e *Environment) SetupNamespace() error {
+	nsTeardown, err := e.CreateLabeledNamespace(e.Namespace, map[string]string{
+		qsv1a1.LabelNamespace: e.Namespace,
+	})
 	if err != nil {
-		return "", errors.Wrap(err, "getting the list of nodes")
+		return errors.Wrapf(err, "Integration setup failed. Creating namespace %s failed", e.Namespace)
 	}
 
-	if len(nodes.Items) == 0 {
-		return "", fmt.Errorf("got an empty list of nodes")
+	e.Teardown = func(wasFailure bool) {
+		if wasFailure {
+			utils.DumpENV(e.Namespace)
+		}
+
+		err := nsTeardown()
+		if err != nil {
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		}
+
+		if e.Stop != nil {
+			close(e.Stop)
+		}
 	}
 
-	addresses := nodes.Items[0].Status.Addresses
-	if len(addresses) == 0 {
-		return "", fmt.Errorf("node has an empty list of addresses")
-	}
-
-	return addresses[0].Address, nil
+	return nil
 }
 
 // ApplyCRDs applies the CRDs to the cluster
