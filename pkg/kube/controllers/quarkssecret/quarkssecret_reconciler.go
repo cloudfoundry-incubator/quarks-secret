@@ -140,6 +140,11 @@ func (r *ReconcileQuarksSecret) Reconcile(request reconcile.Request) (reconcile.
 			ctxlog.Info(ctx, "Error generating certificate secret: "+err.Error())
 			return reconcile.Result{}, errors.Wrap(err, "generating certificate secret.")
 		}
+	case qsv1a1.BasicAuth:
+		err = r.createBasicAuthSecret(ctx, qsec)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "generating basic-auth secret")
+		}
 	default:
 		err = ctxlog.WithEvent(qsec, "InvalidTypeError").Errorf(ctx, "Invalid type: %s", qsec.Spec.Type)
 		return reconcile.Result{}, err
@@ -316,6 +321,28 @@ func (r *ReconcileQuarksSecret) createCertificateSecret(ctx context.Context, qse
 	default:
 		return fmt.Errorf("unrecognized signer type: %s", qsec.Spec.Request.CertificateRequest.SignerType)
 	}
+}
+
+func (r *ReconcileQuarksSecret) createBasicAuthSecret(ctx context.Context, qsec *qsv1a1.QuarksSecret) error {
+	username := qsec.Spec.Request.BasicAuthRequest.Username
+	if username == "" {
+		username = r.generator.GeneratePassword(fmt.Sprintf("%s/username", qsec.Name), credsgen.PasswordGenerationRequest{})
+	}
+	password := r.generator.GeneratePassword(fmt.Sprintf("%s/password", qsec.Name), credsgen.PasswordGenerationRequest{})
+
+	secret := &corev1.Secret{
+		Type: corev1.SecretTypeBasicAuth,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      qsec.Spec.SecretName,
+			Namespace: qsec.GetNamespace(),
+		},
+		StringData: map[string]string{
+			"username": username,
+			"password": password,
+		},
+	}
+
+	return r.createSecrets(ctx, qsec, secret)
 }
 
 // Skip creation when
