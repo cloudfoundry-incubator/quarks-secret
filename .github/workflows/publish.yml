@@ -1,0 +1,38 @@
+name: quarks-secret-publish
+
+on:
+  push:
+    branches-ignore:
+    - refs/tags/*
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: azure/setup-helm@v1
+      with:
+        version: v3.0.0
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v1
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+    - name: Prepare GITHUB_ACTION_BRANCH env
+      shell: bash
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: prepare_branch_env
+    - name: Publish Helm Chart
+      run: |
+        git fetch --unshallow
+        bash ./bin/deploy
+      env:
+        PROJECT: quarks-secret
+        GITHUB_ACTION_BRANCH: ${{ steps.prepare_branch_env.outputs.branch }}
+        GH_PASSWORD: ${{ secrets.GH_PASSWORD }}
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        DOCKER_USERNAME: cfcontainerization
+        GOPROXY: "https://proxy.golang.org"
+
