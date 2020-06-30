@@ -1,0 +1,27 @@
+Running the operator will install the following CRD:
+
+- quarkssecrets.quarks.cloudfoundry.org
+
+You can always verify if the CRD´s are installed, by running:
+ $ kubectl get crds
+
+
+
+{{- if and .Release.IsInstall }}
+
+Interacting with the quarks-secret pod
+
+1. Check the quarks-secret pod status
+  kubectl -n {{ .Release.Namespace }} get pods
+
+2. Tail the quarks-secret pod logs
+  export OPERATOR_POD=$(kubectl get pods -l name=quarks-secret --namespace {{ .Release.Namespace }} --output name)
+  kubectl -n {{ .Release.Namespace }} logs $OPERATOR_POD -f
+
+3. Apply one of the Quarks Secret examples
+  kubectl -n {{ .Release.Namespace }} create -f docs/examples/password.yaml
+
+4. See the quarks-secret in action!
+  kubectl -n {{ .Release.Namespace }} get secret --watch
+
+{{- end -}}

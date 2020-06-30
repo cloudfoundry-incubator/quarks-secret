@@ -3,7 +3,6 @@ package kube_test
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -22,13 +21,6 @@ var (
 )
 
 func FailAndCollectDebugInfo(description string, callerSkip ...int) {
-	fmt.Println("Collecting debug information...")
-	out, err := exec.Command("../../testing/dump_env.sh", namespace).CombinedOutput()
-	if err != nil {
-		fmt.Println("Failed to run the `dump_env.sh` script", err)
-	}
-	fmt.Println(string(out))
-
 	Fail(description, callerSkip...)
 }
 
@@ -52,8 +44,12 @@ var _ = BeforeEach(func() {
 	Expect(err).ToNot(HaveOccurred())
 	teardowns = append(teardowns, teardown)
 
+	teardown, err = e2ehelper.CreateMonitoredNamespace(namespace, operatorNamespace)
+	Expect(err).ToNot(HaveOccurred())
+	teardowns = append(teardowns, teardown)
+
 	teardown, err = e2ehelper.InstallChart(chartPath, operatorNamespace,
-		"--set", fmt.Sprintf("global.singleNamespace.name=%s", namespace),
+		"--set", fmt.Sprintf("global.monitoredID=%s", operatorNamespace),
 	)
 	Expect(err).ToNot(HaveOccurred())
 	// prepend helm clean up
@@ -61,5 +57,16 @@ var _ = BeforeEach(func() {
 })
 
 var _ = AfterEach(func() {
-	e2ehelper.TearDownAll(teardowns)
+	err := e2ehelper.TearDownAll(teardowns)
+	if err != nil {
+		fmt.Printf("Failures while cleaning up test environment:\n %v", err)
+	}
+	teardowns = []e2ehelper.TearDownFunc{}
+})
+
+var _ = AfterSuite(func() {
+	err := e2ehelper.TearDownAll(teardowns)
+	if err != nil {
+		fmt.Printf("Failures while cleaning up test environment:\n %v", err)
+	}
 })
