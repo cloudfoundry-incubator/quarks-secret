@@ -185,4 +185,28 @@ var _ = Describe("QuarksSecret", func() {
 			})
 		})
 	})
+
+	It("generates a basic auth secret with a username and password and deletes it when being deleted", func() {
+		// Create an QuarksSecret
+		var qs *qsv1a1.QuarksSecret
+		qSecret.Spec.SecretName = "generated-basic-auth-secret"
+		qSecret.Spec.Type = qsv1a1.BasicAuth
+		qSecret.Spec.Request.BasicAuthRequest.Username = "some-passed-in-username"
+		qs, tearDown, err := env.CreateQuarksSecret(env.Namespace, qSecret)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(qs).NotTo(Equal(nil))
+		defer func(tdf machine.TearDownFunc) { Expect(tdf()).To(Succeed()) }(tearDown)
+
+		// check for generated secret
+		secret, err := env.CollectSecret(env.Namespace, "generated-basic-auth-secret")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(secret.Data["password"]).To(MatchRegexp("^\\w{64}$"))
+		Expect(string(secret.Data["username"])).To(Equal("some-passed-in-username"))
+
+		// delete quarksSecret
+		err = env.DeleteQuarksSecret(env.Namespace, qSecret.Name)
+		Expect(err).NotTo(HaveOccurred())
+		err = env.WaitForSecretDeletion(env.Namespace, "generated-basic-auth-secret")
+		Expect(err).NotTo(HaveOccurred(), "dependent secret not deleted")
+	})
 })

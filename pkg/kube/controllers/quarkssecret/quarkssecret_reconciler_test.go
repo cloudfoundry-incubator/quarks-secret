@@ -2,6 +2,7 @@ package quarkssecret_test
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -437,6 +438,110 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 			Expect(client.CreateCallCount()).To(Equal(1))
 			Expect(client.UpdateCallCount()).To(Equal(0))
 			Expect(reconcile.Result{}).To(Equal(result))
+		})
+	})
+
+	Context("when creating basic-auth", func() {
+		BeforeEach(func() {
+			qSecret.Spec.Type = "basic-auth"
+		})
+
+		It("creates a secret with k8s type basic-auth", func() {
+			client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+				secret := object.(*corev1.Secret)
+				Expect(secret.Type).To(Equal(corev1.SecretTypeBasicAuth))
+				return nil
+			})
+
+			result, err := reconciler.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(client.CreateCallCount()).To(Equal(1))
+			Expect(reconcile.Result{}).To(Equal(result))
+		})
+
+		It("creates a secret in the correct namespace", func() {
+			client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+				secret := object.(*corev1.Secret)
+				Expect(secret.Namespace).To(Equal(qSecret.Namespace))
+				return nil
+			})
+
+			result, err := reconciler.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(client.CreateCallCount()).To(Equal(1))
+			Expect(reconcile.Result{}).To(Equal(result))
+		})
+
+		It("creates a secret with the correct name", func() {
+			client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+				secret := object.(*corev1.Secret)
+				Expect(secret.Name).To(Equal(qSecret.Spec.SecretName))
+				return nil
+			})
+
+			result, err := reconciler.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(client.CreateCallCount()).To(Equal(1))
+			Expect(reconcile.Result{}).To(Equal(result))
+		})
+
+		When("create basic auth secret fails", func() {
+			It("returns an error message", func() {
+				client.CreateReturns(fmt.Errorf("something went terribly wrong"))
+
+				_, err := reconciler.Reconcile(request)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("generating basic-auth secret: could not create or update secret 'default/generated-secret': something went terribly wrong"))
+			})
+
+			It("does not requeue", func() {
+				client.CreateReturns(fmt.Errorf("something went terribly wrong"))
+
+				result, _ := reconciler.Reconcile(request)
+				Expect(result.Requeue).To(BeFalse())
+			})
+		})
+
+		When("username is not provided", func() {
+			It("generates a username and password", func() {
+				generator.GeneratePasswordReturnsOnCall(0, "some-secret-user")
+				generator.GeneratePasswordReturnsOnCall(1,"some-secret-password")
+
+				client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+					secret := object.(*corev1.Secret)
+					Expect(secret.Type).To(Equal(corev1.SecretTypeBasicAuth))
+					Expect(secret.StringData["username"]).To(Equal("some-secret-user"))
+					Expect(secret.StringData["password"]).To(Equal("some-secret-password"))
+					return nil
+				})
+
+				result, err := reconciler.Reconcile(request)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(generator.GeneratePasswordCallCount()).To(Equal(2))
+				Expect(client.CreateCallCount()).To(Equal(1))
+				Expect(reconcile.Result{}).To(Equal(result))
+			})
+		})
+
+		When("username is provided", func() {
+			It("generates a password, but not a username", func() {
+				qSecret.Spec.Request.BasicAuthRequest.Username = "some-passed-in-username"
+				generator.GeneratePasswordReturns("some-secret-password")
+
+				client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+					secret := object.(*corev1.Secret)
+					Expect(secret.Type).To(Equal(corev1.SecretTypeBasicAuth))
+					Expect(secret.StringData["username"]).To(Equal("some-passed-in-username"))
+					Expect(secret.StringData["password"]).To(Equal("some-secret-password"))
+					return nil
+				})
+
+				result, err := reconciler.Reconcile(request)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(generator.GeneratePasswordCallCount()).To(Equal(1))
+				Expect(client.CreateCallCount()).To(Equal(1))
+				Expect(reconcile.Result{}).To(Equal(result))
+			})
 		})
 	})
 

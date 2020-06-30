@@ -23,6 +23,7 @@ const (
 	Certificate SecretType = "certificate"
 	SSHKey      SecretType = "ssh"
 	RSAKey      SecretType = "rsa"
+	BasicAuth   SecretType = "basic-auth"
 )
 
 // SignerType defines the type of the certificate signer
@@ -92,8 +93,14 @@ type CertificateRequest struct {
 	ActivateEKSWorkaroundForSAN bool               `json:"activateEKSWorkaroundForSAN,omitempty"`
 }
 
+// BasicAuthRequest specifies the details for generating a basic-auth secret
+type BasicAuthRequest struct {
+	Username string `json:"username"`
+}
+
 // Request specifies details for the secret generation
 type Request struct {
+	BasicAuthRequest   BasicAuthRequest   `json:"basic-auth"`
 	CertificateRequest CertificateRequest `json:"certificate"`
 }
 

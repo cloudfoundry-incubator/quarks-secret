@@ -1,0 +1,18 @@
+apiVersion: quarks.cloudfoundry.org/v1alpha1
+kind: QuarksSecret
+metadata:
+  name: generate-basic-auth-1
+spec:
+  type: basic-auth
+  secretName: gen-secret-basic-with-user
+  request:
+    basic-auth:
+      username: my-user
+---
+apiVersion: quarks.cloudfoundry.org/v1alpha1
+kind: QuarksSecret
+metadata:
+  name: generate-basic-auth-2
+spec:
+  type: basic-auth
+  secretName: gen-secret-basic
