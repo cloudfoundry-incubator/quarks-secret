@@ -89,11 +89,11 @@ jobs:
     - name: Run cluster tests
       run: |
         bin/build-image
-        tools/quarks-utils/bin/test-integration
-        tools/quarks-utils/bin/test-cli-e2e
+        bin/test-integration
+        bin/test-cli-e2e
         bin/build-helm
-        tools/quarks-utils/bin/test-helm-e2e
-        tools/quarks-utils/bin/coverage
+        bin/test-helm-e2e
+        bin/coverage
       env:
         PROJECT: quarks-secret
         GITHUB_ACTION_BRANCH: ${{ steps.prepare_branch_env.outputs.branch }}

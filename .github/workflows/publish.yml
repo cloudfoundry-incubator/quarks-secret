@@ -24,6 +24,9 @@ jobs:
       shell: bash
       run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
       id: prepare_branch_env
+    - name: Install shared tools
+      run: |
+        bin/tools
     - name: Publish Helm Chart
       run: |
         git fetch --unshallow
