@@ -165,7 +165,8 @@ var _ = Describe("QuarksSecret", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("deleting quarks secret and generated secret")
-				env.DeleteQuarksSecret(env.Namespace, qSecret.Name)
+				err = env.DeleteQuarksSecret(env.Namespace, qSecret.Name)
+				Expect(err).NotTo(HaveOccurred())
 
 				err = env.WaitForSecretDeletion(env.Namespace, "generated-cert-secret")
 				Expect(err).NotTo(HaveOccurred(), "dependent secret not deleted")
