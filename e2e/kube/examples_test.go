@@ -53,7 +53,9 @@ var _ = Describe("Examples Directory", func() {
 			copyNamespace = "qseccopy-" + strconv.Itoa(int(nsIndex)) + "-" +
 				strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
 
-			cmdHelper.CreateNamespace(copyNamespace)
+			err := cmdHelper.CreateNamespace(copyNamespace)
+			Expect(err).ToNot(HaveOccurred())
+
 			// Create a secret in the copy namespace
 
 			// Create a copy of the example files with the correct namespaces in them
@@ -93,8 +95,11 @@ var _ = Describe("Examples Directory", func() {
 		})
 
 		AfterEach(func() {
-			cmdHelper.DeleteNamespace(copyNamespace)
-			os.Remove(tempQSecretFileName)
+			err := cmdHelper.DeleteNamespace(copyNamespace)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = os.Remove(tempQSecretFileName)
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("are created if everything is setup correctly", func() {

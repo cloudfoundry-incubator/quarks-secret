@@ -82,7 +82,8 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 			},
 		}
 
-		controllers.AddToScheme(scheme.Scheme)
+		err := controllers.AddToScheme(scheme.Scheme)
+		Expect(err).ToNot(HaveOccurred())
 		manager = &cfakes.FakeManager{}
 		request = reconcile.Request{NamespacedName: types.NamespacedName{Name: "foo", Namespace: "default"}}
 		_, log = helper.NewTestLogger()
