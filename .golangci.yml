@@ -1,0 +1,19 @@
+linters:
+  disable-all: true
+  enable:
+    - gocyclo
+    - golint
+    - govet
+    - gofmt
+    - gosec
+    - gosimple
+    - staticcheck
+    - unused
+    - misspell
+    - varcheck
+    - structcheck
+    - ineffassign
+    - deadcode
+run:
+  skip-dirs:
+    - vendor
