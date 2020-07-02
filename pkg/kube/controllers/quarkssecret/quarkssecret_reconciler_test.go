@@ -207,6 +207,35 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 		})
 	})
 
+	Context("when generating dockerConfigJson secret", func() {
+		BeforeEach(func() {
+			qSecret.Spec.Type = qsv1a1.DockerConfigJson
+
+			qSecret.Spec.ImageCredentials = qsv1a1.ImageCredentials{
+				Registry: "fake.registry",
+				Username: "fake-username",
+				Password: "fake-password",
+				Email:    "fake-email",
+			}
+		})
+
+		It("generates dockerConfigJson secret", func() {
+			client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+				secret := object.(*corev1.Secret)
+				Expect(secret.StringData[corev1.DockerConfigJsonKey]).
+					To(Equal("{\"auths\":{\"fake.registry\":{\"username\":\"fake-username\",\"password\":\"fake-password\",\"email\":\"fake-email\",\"auth\":\"ZmFrZS11c2VybmFtZTpmYWtlLXBhc3N3b3Jk\"}}}"))
+				Expect(secret.GetName()).To(Equal("generated-secret"))
+				Expect(secret.GetLabels()).To(HaveKeyWithValue(qsv1a1.LabelKind, qsv1a1.GeneratedSecretKind))
+				return nil
+			})
+
+			result, err := reconciler.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(client.CreateCallCount()).To(Equal(1))
+			Expect(reconcile.Result{}).To(Equal(result))
+		})
+	})
+
 	Context("when generating certificates", func() {
 		BeforeEach(func() {
 			qSecret.Spec.Type = "certificate"

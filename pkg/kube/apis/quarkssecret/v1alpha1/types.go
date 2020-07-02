@@ -19,11 +19,12 @@ type SecretType = string
 
 // Valid values for secret types
 const (
-	Password    SecretType = "password"
-	Certificate SecretType = "certificate"
-	SSHKey      SecretType = "ssh"
-	RSAKey      SecretType = "rsa"
-	BasicAuth   SecretType = "basic-auth"
+	Password         SecretType = "password"
+	Certificate      SecretType = "certificate"
+	SSHKey           SecretType = "ssh"
+	RSAKey           SecretType = "rsa"
+	BasicAuth        SecretType = "basic-auth"
+	DockerConfigJson SecretType = "dockerconfigjson"
 )
 
 // SignerType defines the type of the certificate signer
@@ -115,13 +116,22 @@ func (c *Copy) String() string {
 	return fmt.Sprintf("%s/%s", c.Namespace, c.Name)
 }
 
+// ImageCredentials defines the Docker configuration credentials to compose Image Pull Secret.
+type ImageCredentials struct {
+	Registry string `json:"registry"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
+}
+
 // QuarksSecretSpec defines the desired state of QuarksSecret
 type QuarksSecretSpec struct {
-	Type         SecretType        `json:"type"`
-	Request      Request           `json:"request"`
-	SecretName   string            `json:"secretName"`
-	Copies       []Copy            `json:"copies,omitempty"`
-	SecretLabels map[string]string `json:"secretLabels,omitempty"`
+	Type             SecretType        `json:"type"`
+	Request          Request           `json:"request"`
+	SecretName       string            `json:"secretName"`
+	Copies           []Copy            `json:"copies,omitempty"`
+	SecretLabels     map[string]string `json:"secretLabels,omitempty"`
+	ImageCredentials ImageCredentials  `json:"imageCredentials,omitempty"`
 }
 
 // QuarksSecretStatus defines the observed state of QuarksSecret
