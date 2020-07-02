@@ -1,3 +1,5 @@
+ARG BASE_IMAGE=registry.opensuse.org/cloud/platform/quarks/sle_15_sp1/quarks-operator-base:latest
+
 FROM golang:1.13.4 AS build
 ARG GOPROXY
 ENV GOPROXY $GOPROXY
@@ -16,7 +18,7 @@ COPY . .
 RUN bin/build && \
     cp -p binaries/quarks-secret /usr/local/bin/quarks-secret
 
-FROM registry.opensuse.org/cloud/platform/quarks/sle_15_sp1/quarks-operator-base:latest
+FROM $BASE_IMAGE
 RUN groupadd -g 1000 quarks && \
     useradd -r -u 1000 -g quarks quarks
 USER quarks
