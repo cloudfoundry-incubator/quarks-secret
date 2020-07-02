@@ -33,7 +33,9 @@ var rootCmd = &cobra.Command{
 	Short: "quarks-secret starts the operator",
 	RunE: func(_ *cobra.Command, args []string) error {
 		log = logger.NewControllerLogger(cmd.LogLevel())
-		defer log.Sync()
+		defer func() {
+			_ = log.Sync()
+		}()
 
 		restConfig, err := cmd.KubeConfig(log)
 		if err != nil {
@@ -103,7 +105,7 @@ func init() {
 	cmd.MeltdownFlags(pf, argToEnv)
 
 	pf.Int("max-workers", 1, "Maximum number of workers concurrently running the controller")
-	viper.BindPFlag("max-workers", pf.Lookup("max-workers"))
+	_ = viper.BindPFlag("max-workers", pf.Lookup("max-workers"))
 	argToEnv["max-workers"] = "MAX_WORKERS"
 
 	// Add env variables to help
