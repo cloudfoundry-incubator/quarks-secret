@@ -46,12 +46,6 @@ var rootCmd = &cobra.Command{
 
 		log.Infof("Starting quarks-secret %s, monitoring namespaces labeled with '%s'", version.Version, cfg.MonitoredID)
 
-		err = cmd.DockerImage()
-		if err != nil {
-			return wrapError(err, "")
-		}
-		log.Infof("quarks-secret docker image: %s", config.GetOperatorDockerImage())
-
 		cfg.MaxQuarksSecretWorkers = viper.GetInt("max-workers")
 
 		cmd.CtxTimeOut(cfg)
@@ -105,7 +99,6 @@ func init() {
 	cmd.MonitoredIDFlags(pf, argToEnv)
 	cmd.KubeConfigFlags(pf, argToEnv)
 	cmd.LoggerFlags(pf, argToEnv)
-	cmd.DockerImageFlags(pf, argToEnv, "quarks-secret", version.Version)
 	cmd.ApplyCRDsFlags(pf, argToEnv)
 	cmd.MeltdownFlags(pf, argToEnv)
 
