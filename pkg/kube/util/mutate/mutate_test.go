@@ -88,9 +88,9 @@ var _ = Describe("Mutate", func() {
 
 			It("does not update the quarksSecret when nothing is changed", func() {
 				client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
-					switch object.(type) {
+					switch object := object.(type) {
 					case *qsv1a1.QuarksSecret:
-						object = qSec.DeepCopy()
+						qSec.DeepCopyInto(object)
 
 						return nil
 					}
