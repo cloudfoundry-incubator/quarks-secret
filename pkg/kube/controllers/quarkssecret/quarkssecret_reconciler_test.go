@@ -47,7 +47,8 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 	)
 
 	BeforeEach(func() {
-		controllers.AddToScheme(scheme.Scheme)
+		err := controllers.AddToScheme(scheme.Scheme)
+		Expect(err).ToNot(HaveOccurred())
 		manager = &cfakes.FakeManager{}
 		request = reconcile.Request{NamespacedName: types.NamespacedName{Name: "foo", Namespace: "default"}}
 		config = &cfcfg.Config{CtxTimeOut: 10 * time.Second}

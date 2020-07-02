@@ -33,7 +33,9 @@ var rootCmd = &cobra.Command{
 	Short: "quarks-secret starts the operator",
 	RunE: func(_ *cobra.Command, args []string) error {
 		log = logger.NewControllerLogger(cmd.LogLevel())
-		defer log.Sync()
+		defer func() {
+			_ = log.Sync()
+		}()
 
 		restConfig, err := cmd.KubeConfig(log)
 		if err != nil {
@@ -45,12 +47,6 @@ var rootCmd = &cobra.Command{
 		cmd.MonitoredID(cfg)
 
 		log.Infof("Starting quarks-secret %s, monitoring namespaces labeled with '%s'", version.Version, cfg.MonitoredID)
-
-		err = cmd.DockerImage()
-		if err != nil {
-			return wrapError(err, "")
-		}
-		log.Infof("quarks-secret docker image: %s", config.GetOperatorDockerImage())
 
 		cfg.MaxQuarksSecretWorkers = viper.GetInt("max-workers")
 
@@ -105,12 +101,11 @@ func init() {
 	cmd.MonitoredIDFlags(pf, argToEnv)
 	cmd.KubeConfigFlags(pf, argToEnv)
 	cmd.LoggerFlags(pf, argToEnv)
-	cmd.DockerImageFlags(pf, argToEnv, "quarks-secret", version.Version)
 	cmd.ApplyCRDsFlags(pf, argToEnv)
 	cmd.MeltdownFlags(pf, argToEnv)
 
 	pf.Int("max-workers", 1, "Maximum number of workers concurrently running the controller")
-	viper.BindPFlag("max-workers", pf.Lookup("max-workers"))
+	_ = viper.BindPFlag("max-workers", pf.Lookup("max-workers"))
 	argToEnv["max-workers"] = "MAX_WORKERS"
 
 	// Add env variables to help

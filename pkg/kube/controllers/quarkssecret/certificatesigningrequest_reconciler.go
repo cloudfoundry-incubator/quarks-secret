@@ -137,7 +137,10 @@ func (r *ReconcileCertificateSigningRequest) Reconcile(request reconcile.Request
 				"is_ca":       privateKeySecret.Data["is_ca"],
 			},
 		}
-		r.setReference(qsec, certSecret, r.scheme)
+
+		if err := r.setReference(qsec, certSecret, r.scheme); err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "error setting owner for secret '%s' to QuarksSecret '%s'", certSecret.GetName(), qsec.GetNamespacedName())
+		}
 
 		ctxlog.Infof(ctx, "Creating certificate secret '%s' for CSR '%s'", certSecret.Name, csr.Name)
 		err = r.createSecret(ctx, certSecret)

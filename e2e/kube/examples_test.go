@@ -32,12 +32,14 @@ var _ = Describe("Examples Directory", func() {
 
 	Context("quarks-secret example", func() {
 		BeforeEach(func() {
-			example = "quarks-secret/password.yaml"
+			example = "password.yaml"
 		})
 
 		It("generates a password", func() {
 			By("Checking the generated password")
-			err := cmdHelper.SecretCheckData(namespace, "gen-secret1", ".data.password")
+			err := kubectl.WaitForSecret(namespace, "gen-secret1")
+			Expect(err).ToNot(HaveOccurred())
+			err = cmdHelper.SecretCheckData(namespace, "gen-secret1", ".data.password")
 			Expect(err).ToNot(HaveOccurred())
 		})
 	})
@@ -47,20 +49,22 @@ var _ = Describe("Examples Directory", func() {
 		var tempQSecretFileName string
 
 		BeforeEach(func() {
-			// example = "quarks-secret/copies.yaml"
+			// example = "copies.yaml"
 			copyNamespace = "qseccopy-" + strconv.Itoa(int(nsIndex)) + "-" +
 				strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
 
-			cmdHelper.CreateNamespace(copyNamespace)
+			err := cmdHelper.CreateNamespace(copyNamespace)
+			Expect(err).ToNot(HaveOccurred())
+
 			// Create a secret in the copy namespace
 
 			// Create a copy of the example files with the correct namespaces in them
-			dSecretExample := path.Join(examplesDir, "quarks-secret/copy-secret-destination.yaml")
+			dSecretExample := path.Join(examplesDir, "copy-secret-destination.yaml")
 			dSecret, err := ioutil.ReadFile(dSecretExample)
 			Expect(err).ToNot(HaveOccurred())
-			tmpDSecret, err := ioutil.TempFile("", "dsecret-*")
+			tmpDSecret, err := ioutil.TempFile(os.TempDir(), "dsecret-*")
 			defer os.Remove(tmpDSecret.Name())
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).ToNot(HaveOccurred(), "creating tmp file")
 			_, err = tmpDSecret.WriteString(
 				strings.ReplaceAll(
 					strings.ReplaceAll(
@@ -70,12 +74,12 @@ var _ = Describe("Examples Directory", func() {
 			Expect(tmpDSecret.Close()).ToNot(HaveOccurred())
 
 			// A copy of the QuarkSecret with the correct COPYNAMESPACE in it
-			quarksSecretExample := path.Join(examplesDir, "quarks-secret/copies.yaml")
+			quarksSecretExample := path.Join(examplesDir, "copies.yaml")
 			qSecret, err := ioutil.ReadFile(quarksSecretExample)
 			Expect(err).ToNot(HaveOccurred())
-			tmpQSecret, err := ioutil.TempFile("", "qsec-*")
+			tmpQSecret, err := ioutil.TempFile(examplesDir, "qsec-*")
 			tempQSecretFileName = tmpQSecret.Name()
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).ToNot(HaveOccurred(), "creating tmp file in examples dir")
 			_, err = tmpQSecret.WriteString(
 				strings.ReplaceAll(
 					string(qSecret), "COPYNAMESPACE", copyNamespace,
@@ -91,8 +95,11 @@ var _ = Describe("Examples Directory", func() {
 		})
 
 		AfterEach(func() {
-			cmdHelper.DeleteNamespace(copyNamespace)
-			os.Remove(tempQSecretFileName)
+			err := cmdHelper.DeleteNamespace(copyNamespace)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = os.Remove(tempQSecretFileName)
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("are created if everything is setup correctly", func() {
@@ -104,7 +111,7 @@ var _ = Describe("Examples Directory", func() {
 
 	Context("API server signed certificate example", func() {
 		BeforeEach(func() {
-			example = "quarks-secret/certificate.yaml"
+			example = "certificate.yaml"
 		})
 
 		It("creates a signed cert", func() {
@@ -118,11 +125,11 @@ var _ = Describe("Examples Directory", func() {
 
 	Context("self signed certificate example", func() {
 		BeforeEach(func() {
-			example = "quarks-secret/loggregator-ca-cert.yaml"
+			example = "loggregator-ca-cert.yaml"
 		})
 
 		It("creates a self-signed certificate", func() {
-			certYamlFilePath := examplesDir + "quarks-secret/loggregator-tls-agent-cert.yaml"
+			certYamlFilePath := examplesDir + "loggregator-tls-agent-cert.yaml"
 
 			By("Creating QuarksSecrets")
 			err := cmdHelper.Create(namespace, certYamlFilePath)
