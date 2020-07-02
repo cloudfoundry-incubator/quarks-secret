@@ -2,6 +2,7 @@ package quarkssecret
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strconv"
 	"time"
@@ -144,6 +145,13 @@ func (r *ReconcileQuarksSecret) Reconcile(request reconcile.Request) (reconcile.
 		err = r.createBasicAuthSecret(ctx, qsec)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "generating basic-auth secret")
+		}
+	case qsv1a1.DockerConfigJson:
+		ctxlog.Info(ctx, "Generating dockerConfigJson")
+		err = r.createDockerConfigJson(ctx, qsec)
+		if err != nil {
+			ctxlog.Info(ctx, "Error generating dockerConfigJson secret: "+err.Error())
+			return reconcile.Result{}, errors.Wrap(err, "generating dockerConfigJson secret.")
 		}
 	default:
 		err = ctxlog.WithEvent(qsec, "InvalidTypeError").Errorf(ctx, "Invalid type: %s", qsec.Spec.Type)
@@ -339,6 +347,30 @@ func (r *ReconcileQuarksSecret) createBasicAuthSecret(ctx context.Context, qsec 
 		StringData: map[string]string{
 			"username": username,
 			"password": password,
+		},
+	}
+
+	return r.createSecrets(ctx, qsec, secret)
+}
+
+func (r *ReconcileQuarksSecret) createDockerConfigJson(ctx context.Context, qsec *qsv1a1.QuarksSecret) error {
+	authEncode := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", qsec.Spec.ImageCredentials.Username, qsec.Spec.ImageCredentials.Password)))
+	dockerConfigJsonData := fmt.Sprintf("{\"auths\":{\"%s\":{\"username\":\"%s\",\"password\":\"%s\",\"email\":\"%s\",\"auth\":\"%s\"}}}",
+		qsec.Spec.ImageCredentials.Registry,
+		qsec.Spec.ImageCredentials.Username,
+		qsec.Spec.ImageCredentials.Password,
+		qsec.Spec.ImageCredentials.Email,
+		authEncode,
+	)
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      qsec.Spec.SecretName,
+			Namespace: qsec.GetNamespace(),
+		},
+		Type: corev1.SecretTypeDockerConfigJson,
+		StringData: map[string]string{
+			corev1.DockerConfigJsonKey: dockerConfigJsonData,
 		},
 	}
 
