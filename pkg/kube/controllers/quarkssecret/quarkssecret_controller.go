@@ -110,7 +110,8 @@ func listSecrets(ctx context.Context, client crc.Client, qsec *qsv1a1.QuarksSecr
 		return nil, err
 	}
 
-	for _, secret := range allSecrets.Items {
+	for _, s := range allSecrets.Items {
+		secret := s
 		if metav1.IsControlledBy(&secret, qsec) {
 			result = append(result, secret)
 			ctxlog.Debug(ctx, "Found Secret '", secret.Name, "' owned by QuarksSecret '", qsec.GetNamespacedName(), "'")
