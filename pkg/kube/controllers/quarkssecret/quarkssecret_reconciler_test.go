@@ -505,7 +505,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 		When("username is not provided", func() {
 			It("generates a username and password", func() {
 				generator.GeneratePasswordReturnsOnCall(0, "some-secret-user")
-				generator.GeneratePasswordReturnsOnCall(1,"some-secret-password")
+				generator.GeneratePasswordReturnsOnCall(1, "some-secret-password")
 
 				client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
 					secret := object.(*corev1.Secret)
