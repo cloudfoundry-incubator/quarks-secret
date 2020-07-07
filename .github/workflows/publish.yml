@@ -9,6 +9,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
 
+    if: github.repository == 'cloudfoundry-incubator/quarks-secret'
     steps:
     - uses: azure/setup-helm@v1
       with:
