@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
+	"github.com/cloudflare/cfssl/errors"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -14,11 +15,27 @@ import (
 func QuarksSecretMutateFn(qSec *qsv1a1.QuarksSecret) controllerutil.MutateFn {
 	updated := qSec.DeepCopy()
 	return func() error {
-		qSec.Labels = updated.Labels
-		qSec.Annotations = updated.Annotations
-		qSec.Spec = updated.Spec
+		changed := false
+		if !reflect.DeepEqual(qSec.Labels, updated.Labels) {
+			qSec.Labels = updated.Labels
+			changed = true
+		}
 
-		return nil
+		if !reflect.DeepEqual(qSec.Annotations, updated.Annotations) {
+			qSec.Annotations = updated.Annotations
+			changed = true
+		}
+
+		if !reflect.DeepEqual(qSec.Spec, updated.Spec) {
+			qSec.Spec = updated.Spec
+			changed = true
+		}
+
+		if changed {
+			return nil
+		}
+
+		return &errors.Error{Message: "Nothing updated"}
 	}
 }
 
