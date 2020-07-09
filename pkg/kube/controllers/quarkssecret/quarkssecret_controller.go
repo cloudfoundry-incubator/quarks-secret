@@ -69,6 +69,18 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 				return false
 			}
 
+			fmt.Println("Comparing Spec")
+			fmt.Println("New", n.Spec)
+			fmt.Println("New", o.Spec)
+
+			fmt.Println("Comparing Lables")
+			fmt.Println("New", n.Labels)
+			fmt.Println("New", o.Labels)
+
+			fmt.Println("Comparing Annotations")
+			fmt.Println("New", n.Annotations)
+			fmt.Println("New", o.Annotations)
+
 			// When should we reconcile?
 			// | old   | new   | reconcile? |
 			// | ----- | ----- | ---------- |
