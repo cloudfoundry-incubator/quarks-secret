@@ -75,6 +75,18 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 			// | true  | nil   | false      |
 			// | false | nil   | true       |
 			// | nil   | nil   | true       |
+
+			if o.Status.Generated == nil {
+				fmt.Println("Old status check nil")
+			} else {
+				fmt.Println("Old status check", *o.Status.Generated)
+			}
+			if n.Status.Generated == nil {
+				fmt.Println("New status check nil")
+			} else {
+				fmt.Println("New status check", *n.Status.Generated)
+			}
+
 			if (n.Status.Generated != nil && !*n.Status.Generated) ||
 				(n.Status.Generated == nil && (o.Status.Generated == nil || !*o.Status.Generated)) {
 				ctxlog.NewPredicateEvent(e.ObjectNew).Debug(
