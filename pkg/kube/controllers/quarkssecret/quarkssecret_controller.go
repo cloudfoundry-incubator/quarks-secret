@@ -50,6 +50,9 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 				ctxlog.Errorf(ctx, "Failed to list secrets owned by QuarksSecret '%s': %s in quarksSecret controller", o.GetNamespacedName(), err)
 			}
 			if len(secrets) == 0 {
+				fmt.Println("Comparing Spec")
+				fmt.Println("New in create", o.Spec)
+
 				ctxlog.NewPredicateEvent(e.Object).Debug(
 					ctx, e.Meta, "qsv1a1.QuarksSecret",
 					fmt.Sprintf("Create predicate passed for '%s/%s'", e.Meta.GetNamespace(), e.Meta.GetName()),

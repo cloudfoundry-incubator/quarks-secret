@@ -173,6 +173,7 @@ func (r *ReconcileQuarksSecret) createPasswordSecret(ctx context.Context, qsec *
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      qsec.Spec.SecretName,
 			Namespace: qsec.GetNamespace(),
+			Labels:    qsec.Spec.SecretLabels,
 		},
 		StringData: map[string]string{
 			"password": password,
@@ -192,6 +193,7 @@ func (r *ReconcileQuarksSecret) createRSASecret(ctx context.Context, qsec *qsv1a
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      qsec.Spec.SecretName,
 			Namespace: qsec.GetNamespace(),
+			Labels:    qsec.Spec.SecretLabels,
 		},
 		StringData: map[string]string{
 			"private_key": string(key.PrivateKey),
@@ -211,6 +213,7 @@ func (r *ReconcileQuarksSecret) createSSHSecret(ctx context.Context, qsec *qsv1a
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      qsec.Spec.SecretName,
 			Namespace: qsec.GetNamespace(),
+			Labels:    qsec.Spec.SecretLabels,
 		},
 		StringData: map[string]string{
 			"private_key":            string(key.PrivateKey),
@@ -282,6 +285,7 @@ func (r *ReconcileQuarksSecret) createCertificateSecret(ctx context.Context, qse
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      names.CsrPrivateKeySecretName(names.CSRName(qsec.Namespace, qsec.Name)),
 				Namespace: qsec.GetNamespace(),
+				Labels:    qsec.Spec.SecretLabels,
 			},
 			StringData: map[string]string{
 				"private_key": string(key),
@@ -305,6 +309,7 @@ func (r *ReconcileQuarksSecret) createCertificateSecret(ctx context.Context, qse
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      qsec.Spec.SecretName,
 				Namespace: qsec.GetNamespace(),
+				Labels:    qsec.Spec.SecretLabels,
 			},
 			StringData: map[string]string{
 				"certificate": string(cert.Certificate),
@@ -335,6 +340,7 @@ func (r *ReconcileQuarksSecret) createBasicAuthSecret(ctx context.Context, qsec 
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      qsec.Spec.SecretName,
 			Namespace: qsec.GetNamespace(),
+			Labels:    qsec.Spec.SecretLabels,
 		},
 		StringData: map[string]string{
 			"username": username,
