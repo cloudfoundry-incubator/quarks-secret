@@ -64,6 +64,10 @@ var (
 								},
 							},
 						},
+						"secretLabels": {
+							Type:                   "object",
+							XPreserveUnknownFields: pointers.Bool(true),
+						},
 					},
 					Required: []string{
 						"secretName",
