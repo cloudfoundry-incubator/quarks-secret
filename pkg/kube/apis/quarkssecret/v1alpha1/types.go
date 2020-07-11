@@ -24,7 +24,7 @@ const (
 	SSHKey           SecretType = "ssh"
 	RSAKey           SecretType = "rsa"
 	BasicAuth        SecretType = "basic-auth"
-	DockerConfigJson SecretType = "dockerconfigjson"
+	DockerConfigJSON SecretType = "dockerconfigjson"
 )
 
 // SignerType defines the type of the certificate signer
