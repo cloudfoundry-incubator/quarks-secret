@@ -209,7 +209,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 
 	Context("when generating dockerConfigJson secret", func() {
 		BeforeEach(func() {
-			qSecret.Spec.Type = qsv1a1.DockerConfigJson
+			qSecret.Spec.Type = qsv1a1.DockerConfigJSON
 
 			qSecret.Spec.ImageCredentials = qsv1a1.ImageCredentials{
 				Registry: "fake.registry",
