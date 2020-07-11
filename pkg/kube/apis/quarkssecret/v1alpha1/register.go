@@ -74,22 +74,18 @@ var (
 							Properties: map[string]extv1.JSONSchemaProps{
 								"registry": {
 									Type:        "string",
-									MinLength:   pointers.Int64(1),
 									Description: "The FQDN of Image Registry",
 								},
 								"username": {
 									Type:        "string",
-									MinLength:   pointers.Int64(1),
 									Description: "The username of Image Registry",
 								},
 								"password": {
 									Type:        "string",
-									MinLength:   pointers.Int64(1),
 									Description: "The password of Image Registry",
 								},
 								"email": {
 									Type:        "string",
-									MinLength:   pointers.Int64(1),
 									Description: "The email of Image Registry",
 								},
 							},
