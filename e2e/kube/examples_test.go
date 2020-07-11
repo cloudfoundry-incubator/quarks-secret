@@ -156,4 +156,18 @@ var _ = Describe("Examples Directory", func() {
 			Expect(err).ToNot(HaveOccurred(), "error verifying certificates")
 		})
 	})
+
+	Context("dockerConfigJson secret example", func() {
+		BeforeEach(func() {
+			example = "docker-registry-secret.yaml"
+		})
+
+		It("creates a dockerConfigJson secret", func() {
+			By("Checking the generated data")
+			err := kubectl.WaitForSecret(namespace, "gen-docker-registry-secret")
+			Expect(err).ToNot(HaveOccurred(), "error waiting for secret")
+			err = cmdHelper.SecretCheckData(namespace, "gen-docker-registry-secret", "index .data  \".dockerconfigjson\"")
+			Expect(err).ToNot(HaveOccurred(), "error getting for secret")
+		})
+	})
 })

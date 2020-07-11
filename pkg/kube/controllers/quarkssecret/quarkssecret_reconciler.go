@@ -146,9 +146,9 @@ func (r *ReconcileQuarksSecret) Reconcile(request reconcile.Request) (reconcile.
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "generating basic-auth secret")
 		}
-	case qsv1a1.DockerConfigJson:
+	case qsv1a1.DockerConfigJSON:
 		ctxlog.Info(ctx, "Generating dockerConfigJson")
-		err = r.createDockerConfigJson(ctx, qsec)
+		err = r.createDockerConfigJSON(ctx, qsec)
 		if err != nil {
 			ctxlog.Info(ctx, "Error generating dockerConfigJson secret: "+err.Error())
 			return reconcile.Result{}, errors.Wrap(err, "generating dockerConfigJson secret.")
@@ -353,9 +353,9 @@ func (r *ReconcileQuarksSecret) createBasicAuthSecret(ctx context.Context, qsec 
 	return r.createSecrets(ctx, qsec, secret)
 }
 
-func (r *ReconcileQuarksSecret) createDockerConfigJson(ctx context.Context, qsec *qsv1a1.QuarksSecret) error {
+func (r *ReconcileQuarksSecret) createDockerConfigJSON(ctx context.Context, qsec *qsv1a1.QuarksSecret) error {
 	authEncode := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", qsec.Spec.ImageCredentials.Username, qsec.Spec.ImageCredentials.Password)))
-	dockerConfigJsonData := fmt.Sprintf("{\"auths\":{\"%s\":{\"username\":\"%s\",\"password\":\"%s\",\"email\":\"%s\",\"auth\":\"%s\"}}}",
+	dockerConfigJSONData := fmt.Sprintf("{\"auths\":{\"%s\":{\"username\":\"%s\",\"password\":\"%s\",\"email\":\"%s\",\"auth\":\"%s\"}}}",
 		qsec.Spec.ImageCredentials.Registry,
 		qsec.Spec.ImageCredentials.Username,
 		qsec.Spec.ImageCredentials.Password,
@@ -370,7 +370,7 @@ func (r *ReconcileQuarksSecret) createDockerConfigJson(ctx context.Context, qsec
 		},
 		Type: corev1.SecretTypeDockerConfigJson,
 		StringData: map[string]string{
-			corev1.DockerConfigJsonKey: dockerConfigJsonData,
+			corev1.DockerConfigJsonKey: dockerConfigJSONData,
 		},
 	}
 
