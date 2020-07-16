@@ -50,6 +50,3 @@ global:
   # monitoredID is a string that has to match the content of the 'monitored' label in each monitored namespace.
   # The monitoredID helper uses the release fullname, unless this is set.
   monitoredID:
-  rbac:
-    # create is a boolean to control the installation of rbac resources.
-    create: true
