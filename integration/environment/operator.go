@@ -8,19 +8,13 @@ import (
 )
 
 // StartOperator starts the quarks secret operator
-func (e *Environment) StartOperator() (chan struct{}, error) {
+func (e *Environment) StartOperator() error {
 	mgr, err := e.setupOperator()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	stop := make(chan struct{})
-	go func() {
-		err := mgr.Start(stop)
-		if err != nil {
-			panic(err)
-		}
-	}()
-	return stop, err
+	e.StartManager(mgr)
+	return nil
 }
 
 func (e *Environment) setupOperator() (manager.Manager, error) {
