@@ -41,9 +41,6 @@ global:
   meltdownDuration: 60
   # MeltdownRequeueAfter is the duration (in seconds) for which we delay the requeuing of the reconcile
   meltdownRequeueAfter: 30
-  rbac:
-    # create is a boolean to control the installation of rbac resources.
-    create: true
   image:
     # pullPolicy defines the policy used for pulling docker images.
     pullPolicy: IfNotPresent
