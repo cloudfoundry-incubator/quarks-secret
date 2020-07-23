@@ -19,8 +19,8 @@ RUN bin/build && \
     cp -p binaries/quarks-secret /usr/local/bin/quarks-secret
 
 FROM $BASE_IMAGE
-RUN groupadd -g 1000 quarks && \
-    useradd -r -u 1000 -g quarks quarks
+RUN groupadd quarks && \
+    useradd -r -g quarks quarks
 USER quarks
 COPY --from=build /usr/local/bin/quarks-secret /usr/local/bin/quarks-secret
 ENTRYPOINT ["/tini", "--", "/usr/local/bin/quarks-secret"]
