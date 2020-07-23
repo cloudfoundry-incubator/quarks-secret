@@ -1,20 +1,42 @@
+run:
+  deadline: 20s
+linters-settings:
+  dupl:
+    threshold: 400
+issues:
+  # don't skip warning about doc comments
+  exclude-use-default: false
+
+  # restore some of the defaults
+  # (fill in the rest as needed)
+  exclude-rules:
+  - linters: [errcheck]
+    text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*printf?|os\\.(Un)?Setenv|Errorf). is not checked"
+  skip-files:
+  - ".*_fake.go$"
+  skip-dirs:
+  - pkg/kube/client
+
 linters:
   disable-all: true
   enable:
-    - gocyclo
-    - golint
-    - govet
-    - gofmt
-    - gosec
-    - gosimple
-    - staticcheck
-    - unused
-    - misspell
-    - varcheck
-    - structcheck
-    - ineffassign
-    - deadcode
-run:
-  skip-dirs:
-    - vendor
-    - pkg/kube/client
+  - misspell
+  - structcheck
+  - golint
+  - govet
+  - staticcheck
+  - deadcode
+  - errcheck
+  - varcheck
+  - goconst
+  - unparam
+  - ineffassign
+  - nakedret
+  - interfacer
+  - gocyclo
+  - dupl
+  - goimports
+  - golint
+  - gosimple
+  - typecheck
+  - unused
