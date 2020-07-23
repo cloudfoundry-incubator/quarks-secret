@@ -2,9 +2,8 @@ bitbucket.org/liamstask/goose v0.0.0-20150115234039-8488cc47d90c/go.mod h1:hSVuE
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.38.0/go.mod h1:990N+gfupTy94rShfmMCWGDn0LpTmnzTp2qbd1dvSRU=
-code.cloudfoundry.org/quarks-utils v0.0.0-20200630135315-de0c944c2813 h1:QZhVq4QXjajEAcffQ4gnx0XaJTdzxESSy8MCFtWb+A4=
-code.cloudfoundry.org/quarks-utils v0.0.0-20200630135315-de0c944c2813/go.mod h1:voPdeHf5x70u82CBFDCisvVFhxpXKuUEjd+b8y4Dcwo=
-code.cloudfoundry.org/quarks-utils v0.0.0-20200722111648-1075b6581b91 h1:gcTEViVeLWPL395CCP2CixkttRQDdn4pzH7F6pDZxJE=
+code.cloudfoundry.org/quarks-utils v0.0.0-20200721113854-0b1ab7e84ec5 h1:Q7nbyCy65Yp9dMR0Wx3hSsSuk5KdbMWMBfAhjl0R4/c=
+code.cloudfoundry.org/quarks-utils v0.0.0-20200721113854-0b1ab7e84ec5/go.mod h1:voPdeHf5x70u82CBFDCisvVFhxpXKuUEjd+b8y4Dcwo=
 github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78/go.mod h1:LmzpDX56iTiv29bbRTIsUNlaFfuhWRQBWjQdVyAevI8=
 github.com/Azure/go-autorest/autorest v0.9.0/go.mod h1:xyHB1BMZT0cuDHU7I0+g046+BFDTQ8rEZB0s4Yfa6bI=
 github.com/Azure/go-autorest/autorest/adal v0.5.0/go.mod h1:8Z9fGy2MpX0PvDjB1pEgQTmVqjGhiHBW7RJJEciWzS0=

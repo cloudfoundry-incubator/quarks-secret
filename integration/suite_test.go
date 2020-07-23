@@ -10,7 +10,6 @@ import (
 	"k8s.io/client-go/rest"
 
 	"code.cloudfoundry.org/quarks-secret/integration/environment"
-	cmdHelper "code.cloudfoundry.org/quarks-utils/testing"
 	utils "code.cloudfoundry.org/quarks-utils/testing/integration"
 )
 
@@ -61,7 +60,7 @@ var _ = BeforeEach(func() {
 	}
 	namespacesToNuke = append(namespacesToNuke, env.Namespace)
 
-	env.Stop, err = env.StartOperator()
+	err = env.StartOperator()
 	if err != nil {
 		Expect(err).NotTo(HaveOccurred())
 	}
@@ -72,11 +71,5 @@ var _ = AfterEach(func() {
 })
 
 var _ = AfterSuite(func() {
-	// Nuking all namespaces at the end of the run
-	for _, namespace := range namespacesToNuke {
-		err := cmdHelper.DeleteNamespace(namespace)
-		if err != nil && !env.NamespaceDeletionInProgress(err) {
-			fmt.Printf("WARNING: failed to delete namespace %s: %v\n", namespace, err)
-		}
-	}
+	utils.NukeNamespaces(namespacesToNuke)
 })
