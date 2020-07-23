@@ -7,8 +7,6 @@ import (
 	"time"
 
 	gomegaConfig "github.com/onsi/ginkgo/config"
-	"github.com/onsi/gomega"
-	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 
 	"k8s.io/client-go/kubernetes"
@@ -85,29 +83,10 @@ func (e *Environment) NamespaceDeletionInProgress(err error) bool {
 
 // SetupNamespace creates the namespace and the clientsets and prepares the teardowm
 func (e *Environment) SetupNamespace() error {
-	nsTeardown, err := e.CreateLabeledNamespace(e.Namespace, map[string]string{
-		qsv1a1.LabelNamespace: e.Namespace,
-	})
-	if err != nil {
-		return errors.Wrapf(err, "Integration setup failed. Creating namespace %s failed", e.Namespace)
-	}
-
-	e.Teardown = func(wasFailure bool) {
-		if wasFailure {
-			utils.DumpENV(e.Namespace)
-		}
-
-		err := nsTeardown()
-		if err != nil {
-			gomega.Expect(err).NotTo(gomega.HaveOccurred())
-		}
-
-		if e.Stop != nil {
-			close(e.Stop)
-		}
-	}
-
-	return nil
+	return utils.SetupNamespace(e.Environment, e.Machine.Machine,
+		map[string]string{
+			qsv1a1.LabelNamespace: e.Namespace,
+		})
 }
 
 // ApplyCRDs applies the CRDs to the cluster
