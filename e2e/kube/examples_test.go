@@ -31,16 +31,35 @@ var _ = Describe("Examples Directory", func() {
 	})
 
 	Context("quarks-secret example", func() {
-		BeforeEach(func() {
-			example = "password.yaml"
-		})
+		var (
+			passwordv1 []byte
+			passwordv2 []byte
+		)
 
-		It("generates a password", func() {
-			By("Checking the generated password")
-			err := kubectl.WaitForSecret(namespace, "gen-secret1")
-			Expect(err).ToNot(HaveOccurred())
-			err = cmdHelper.SecretCheckData(namespace, "gen-secret1", ".data.password")
-			Expect(err).ToNot(HaveOccurred())
+		Context("rotates the password secret", func() {
+			BeforeEach(func() {
+				example = "password.yaml"
+			})
+
+			It("should change the password data", func() {
+				By("Creating the password secret")
+				err := kubectl.WaitForSecret(namespace, "gen-secret1")
+				Expect(err).ToNot(HaveOccurred())
+				passwordv1, err = cmdHelper.GetData(namespace, "secret", "gen-secret1", "go-template={{.data.password}}")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(passwordv1).NotTo(BeNil())
+
+				By("Creating the rotate configmap")
+				example = "rotate.yaml"
+				yamlFilePath = path.Join(examplesDir, example)
+				err = cmdHelper.Create(namespace, yamlFilePath)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("Checking the rotated password data")
+				passwordv1, err = cmdHelper.GetData(namespace, "secret", "gen-secret1", "go-template={{.data.password}}")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(passwordv1).NotTo(Equal(passwordv2))
+			})
 		})
 	})
 
