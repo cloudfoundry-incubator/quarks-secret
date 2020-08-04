@@ -171,8 +171,10 @@ func (r *ReconcileQuarksSecret) createPasswordSecret(ctx context.Context, qsec *
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      qsec.Spec.SecretName,
-			Namespace: qsec.GetNamespace(),
+			Name:        qsec.Spec.SecretName,
+			Namespace:   qsec.GetNamespace(),
+			Labels:      qsec.Spec.SecretLabels,
+			Annotations: qsec.Spec.SecretAnnotations,
 		},
 		StringData: map[string]string{
 			"password": password,
@@ -190,8 +192,10 @@ func (r *ReconcileQuarksSecret) createRSASecret(ctx context.Context, qsec *qsv1a
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      qsec.Spec.SecretName,
-			Namespace: qsec.GetNamespace(),
+			Name:        qsec.Spec.SecretName,
+			Namespace:   qsec.GetNamespace(),
+			Labels:      qsec.Spec.SecretLabels,
+			Annotations: qsec.Spec.SecretAnnotations,
 		},
 		StringData: map[string]string{
 			"private_key": string(key.PrivateKey),
@@ -209,8 +213,10 @@ func (r *ReconcileQuarksSecret) createSSHSecret(ctx context.Context, qsec *qsv1a
 	}
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      qsec.Spec.SecretName,
-			Namespace: qsec.GetNamespace(),
+			Name:        qsec.Spec.SecretName,
+			Namespace:   qsec.GetNamespace(),
+			Labels:      qsec.Spec.SecretLabels,
+			Annotations: qsec.Spec.SecretAnnotations,
 		},
 		StringData: map[string]string{
 			"private_key":            string(key.PrivateKey),
@@ -280,8 +286,10 @@ func (r *ReconcileQuarksSecret) createCertificateSecret(ctx context.Context, qse
 		// private key Secret which will be merged to certificate Secret later
 		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      names.CsrPrivateKeySecretName(names.CSRName(qsec.Namespace, qsec.Name)),
-				Namespace: qsec.GetNamespace(),
+				Name:        names.CsrPrivateKeySecretName(names.CSRName(qsec.Namespace, qsec.Name)),
+				Namespace:   qsec.GetNamespace(),
+				Labels:      qsec.Spec.SecretLabels,
+				Annotations: qsec.Spec.SecretAnnotations,
 			},
 			StringData: map[string]string{
 				"private_key": string(key),
@@ -303,8 +311,10 @@ func (r *ReconcileQuarksSecret) createCertificateSecret(ctx context.Context, qse
 		}
 		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      qsec.Spec.SecretName,
-				Namespace: qsec.GetNamespace(),
+				Name:        qsec.Spec.SecretName,
+				Namespace:   qsec.GetNamespace(),
+				Labels:      qsec.Spec.SecretLabels,
+				Annotations: qsec.Spec.SecretAnnotations,
 			},
 			StringData: map[string]string{
 				"certificate": string(cert.Certificate),
