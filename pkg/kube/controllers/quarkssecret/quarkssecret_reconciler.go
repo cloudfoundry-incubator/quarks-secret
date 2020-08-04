@@ -173,6 +173,7 @@ func (r *ReconcileQuarksSecret) createPasswordSecret(ctx context.Context, qsec *
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      qsec.Spec.SecretName,
 			Namespace: qsec.GetNamespace(),
+			Labels:    qsec.Spec.SecretLabels,
 		},
 		StringData: map[string]string{
 			"password": password,
