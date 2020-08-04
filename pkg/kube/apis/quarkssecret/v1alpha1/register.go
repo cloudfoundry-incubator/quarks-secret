@@ -68,28 +68,6 @@ var (
 							Type:                   "object",
 							XPreserveUnknownFields: pointers.Bool(true),
 						},
-						"imageCredentials": {
-							Type:        "object",
-							Description: "Credentials to authenticate with a image registry",
-							Properties: map[string]extv1.JSONSchemaProps{
-								"registry": {
-									Type:        "string",
-									Description: "The FQDN of Image Registry",
-								},
-								"username": {
-									Type:        "string",
-									Description: "The username of Image Registry",
-								},
-								"password": {
-									Type:        "string",
-									Description: "The password of Image Registry",
-								},
-								"email": {
-									Type:        "string",
-									Description: "The email of Image Registry",
-								},
-							},
-						},
 					},
 					Required: []string{
 						"secretName",

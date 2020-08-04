@@ -99,10 +99,19 @@ type BasicAuthRequest struct {
 	Username string `json:"username"`
 }
 
+// ImageCredentialsRequest specifies the details for the image credentials
+type ImageCredentialsRequest struct {
+	Username SecretReference `json:"username"`
+	Password SecretReference `json:"password"`
+	Registry string          `json:"registry"`
+	Email    string          `json:"email"`
+}
+
 // Request specifies details for the secret generation
 type Request struct {
-	BasicAuthRequest   BasicAuthRequest   `json:"basic-auth"`
-	CertificateRequest CertificateRequest `json:"certificate"`
+	BasicAuthRequest        BasicAuthRequest        `json:"basic-auth"`
+	CertificateRequest      CertificateRequest      `json:"certificate"`
+	ImageCredentialsRequest ImageCredentialsRequest `json:"imageCredentials"`
 }
 
 // Copy defines the destination of a copied generated secret
@@ -116,22 +125,13 @@ func (c *Copy) String() string {
 	return fmt.Sprintf("%s/%s", c.Namespace, c.Name)
 }
 
-// ImageCredentials defines the Docker configuration credentials to compose Image Pull Secret.
-type ImageCredentials struct {
-	Registry string `json:"registry"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
-}
-
 // QuarksSecretSpec defines the desired state of QuarksSecret
 type QuarksSecretSpec struct {
-	Type             SecretType        `json:"type"`
-	Request          Request           `json:"request"`
-	SecretName       string            `json:"secretName"`
-	Copies           []Copy            `json:"copies,omitempty"`
-	SecretLabels     map[string]string `json:"secretLabels,omitempty"`
-	ImageCredentials ImageCredentials  `json:"imageCredentials,omitempty"`
+	Type         SecretType        `json:"type"`
+	Request      Request           `json:"request"`
+	SecretName   string            `json:"secretName"`
+	Copies       []Copy            `json:"copies,omitempty"`
+	SecretLabels map[string]string `json:"secretLabels,omitempty"`
 }
 
 // QuarksSecretStatus defines the observed state of QuarksSecret
