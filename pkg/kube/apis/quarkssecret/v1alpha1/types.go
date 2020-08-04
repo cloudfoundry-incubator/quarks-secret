@@ -117,11 +117,12 @@ func (c *Copy) String() string {
 
 // QuarksSecretSpec defines the desired state of QuarksSecret
 type QuarksSecretSpec struct {
-	Type         SecretType        `json:"type"`
-	Request      Request           `json:"request"`
-	SecretName   string            `json:"secretName"`
-	Copies       []Copy            `json:"copies,omitempty"`
-	SecretLabels map[string]string `json:"secretLabels,omitempty"`
+	Type              SecretType        `json:"type"`
+	Request           Request           `json:"request"`
+	SecretName        string            `json:"secretName"`
+	Copies            []Copy            `json:"copies,omitempty"`
+	SecretLabels      map[string]string `json:"secretLabels,omitempty"`
+	SecretAnnotations map[string]string `json:"secretAnnotations,omitempty"`
 }
 
 // QuarksSecretStatus defines the observed state of QuarksSecret
