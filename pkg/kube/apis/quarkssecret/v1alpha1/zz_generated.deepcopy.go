@@ -86,6 +86,13 @@ func (in *QuarksSecret) DeepCopyInto(out *QuarksSecret) {
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
 	in.Spec.DeepCopyInto(&out.Spec)
 	in.Status.DeepCopyInto(&out.Status)
+	if in.SecretLabels != nil {
+		in, out := &in.SecretLabels, &out.SecretLabels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 
