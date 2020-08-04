@@ -208,7 +208,7 @@ func (r *ReconcileCertificateSigningRequest) createSecret(ctx context.Context, s
 
 	obj := secret.DeepCopy()
 	op, err := controllerutil.CreateOrUpdate(ctx, r.client, obj, func() error {
-		obj.StringData = secret.StringData
+		obj.Data = secret.Data
 		return nil
 	})
 	if err != nil {
