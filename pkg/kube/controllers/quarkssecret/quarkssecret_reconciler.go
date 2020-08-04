@@ -75,6 +75,26 @@ func isCaNotReady(o interface{}) bool {
 	return ok
 }
 
+type secNotReadyError struct {
+	message string
+}
+
+func newSecNotReadyError(message string) *secNotReadyError {
+	return &secNotReadyError{message: message}
+}
+
+// Error returns the error message
+func (e *secNotReadyError) Error() string {
+	return e.message
+}
+
+func isSecNotReady(o interface{}) bool {
+	err := o.(error)
+	err = errors.Cause(err)
+	_, ok := err.(*secNotReadyError)
+	return ok
+}
+
 // Reconcile reads that state of the cluster for a QuarksSecret object and makes changes based on the state read
 // and what is in the QuarksSecret.Spec
 // Note:
@@ -150,6 +170,10 @@ func (r *ReconcileQuarksSecret) Reconcile(request reconcile.Request) (reconcile.
 		ctxlog.Info(ctx, "Generating dockerConfigJson")
 		err = r.createDockerConfigJSON(ctx, qsec)
 		if err != nil {
+			if isSecNotReady(err) {
+				ctxlog.Info(ctx, fmt.Sprintf("Secrets '%s' is not ready yet: %s", request.NamespacedName, err))
+				return reconcile.Result{RequeueAfter: time.Second * 5}, nil
+			}
 			ctxlog.Info(ctx, "Error generating dockerConfigJson secret: "+err.Error())
 			return reconcile.Result{}, errors.Wrap(err, "generating dockerConfigJson secret.")
 		}
@@ -354,12 +378,60 @@ func (r *ReconcileQuarksSecret) createBasicAuthSecret(ctx context.Context, qsec 
 }
 
 func (r *ReconcileQuarksSecret) createDockerConfigJSON(ctx context.Context, qsec *qsv1a1.QuarksSecret) error {
-	authEncode := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", qsec.Spec.ImageCredentials.Username, qsec.Spec.ImageCredentials.Password)))
+	// Fetch username and password.
+	username := ""
+	if len(qsec.Spec.Request.ImageCredentialsRequest.Username.Name) > 0 {
+		userSecret := &corev1.Secret{}
+		userNamespacedName := types.NamespacedName{
+			Namespace: qsec.Namespace,
+			Name:      qsec.Spec.Request.ImageCredentialsRequest.Username.Name,
+		}
+		err := r.client.Get(ctx, userNamespacedName, userSecret)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return newSecNotReadyError("username secret not found")
+			}
+			return errors.Wrap(err, "getting username secret")
+		}
+		username, err = decodeToString(userSecret.Data[qsec.Spec.Request.ImageCredentialsRequest.Username.Key])
+		if err != nil {
+			return errors.Wrap(err, "decoding username data")
+		}
+	}
+	if username == "" {
+		username = r.generator.GeneratePassword(fmt.Sprintf("%s/username", qsec.Name), credsgen.PasswordGenerationRequest{})
+	}
+
+	password := ""
+	if len(qsec.Spec.Request.ImageCredentialsRequest.Password.Name) > 0 {
+		passSecret := &corev1.Secret{}
+		passNamespacedName := types.NamespacedName{
+			Namespace: qsec.Namespace,
+			Name:      qsec.Spec.Request.ImageCredentialsRequest.Password.Name,
+		}
+		err := r.client.Get(ctx, passNamespacedName, passSecret)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return newSecNotReadyError("password secret not found")
+			}
+			return errors.Wrap(err, "getting password secret")
+		}
+
+		password, err = decodeToString(passSecret.Data[qsec.Spec.Request.ImageCredentialsRequest.Password.Key])
+		if err != nil {
+			return errors.Wrap(err, "decoding password data")
+		}
+	}
+	if password == "" {
+		password = r.generator.GeneratePassword(fmt.Sprintf("%s/password", qsec.Name), credsgen.PasswordGenerationRequest{})
+	}
+
+	authEncode := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", username, password)))
 	dockerConfigJSONData := fmt.Sprintf("{\"auths\":{\"%s\":{\"username\":\"%s\",\"password\":\"%s\",\"email\":\"%s\",\"auth\":\"%s\"}}}",
-		qsec.Spec.ImageCredentials.Registry,
-		qsec.Spec.ImageCredentials.Username,
-		qsec.Spec.ImageCredentials.Password,
-		qsec.Spec.ImageCredentials.Email,
+		qsec.Spec.Request.ImageCredentialsRequest.Registry,
+		username,
+		password,
+		qsec.Spec.Request.ImageCredentialsRequest.Email,
 		authEncode,
 	)
 
@@ -692,4 +764,13 @@ func (r *ReconcileQuarksSecret) createCertificateSigningRequest(ctx context.Cont
 
 	ctxlog.Infof(ctx, "Ignoring immutable CSR '%s'", csrObj.Name)
 	return nil
+}
+
+func decodeToString(src []byte) (string, error) {
+	dbuf := make([]byte, base64.StdEncoding.DecodedLen(len(src)))
+	n, err := base64.StdEncoding.Decode(dbuf, src)
+	if err != nil {
+		return "", err
+	}
+	return string(dbuf[:n]), nil
 }

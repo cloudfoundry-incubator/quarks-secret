@@ -211,12 +211,48 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 		BeforeEach(func() {
 			qSecret.Spec.Type = qsv1a1.DockerConfigJSON
 
-			qSecret.Spec.ImageCredentials = qsv1a1.ImageCredentials{
+			qSecret.Spec.Request.ImageCredentialsRequest = qsv1a1.ImageCredentialsRequest{
 				Registry: "fake.registry",
-				Username: "fake-username",
-				Password: "fake-password",
+				Username: qsv1a1.SecretReference{Name: "myusername", Key: "username"},
+				Password: qsv1a1.SecretReference{Name: "mypassword", Key: "password"},
 				Email:    "fake-email",
 			}
+
+			userSec := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "myusername",
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"username": []byte("ZmFrZS11c2VybmFtZQ=="),
+				},
+			}
+
+			passSec := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "mypassword",
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"password": []byte("ZmFrZS1wYXNzd29yZA=="),
+				},
+			}
+
+			client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+				switch object := object.(type) {
+				case *qsv1a1.QuarksSecret:
+					qSecret.DeepCopyInto(object)
+				case *corev1.Secret:
+					if nn.Name == "myusername" {
+						userSec.DeepCopyInto(object)
+					} else if nn.Name == "mypassword" {
+						passSec.DeepCopyInto(object)
+					} else {
+						return errors.NewNotFound(schema.GroupResource{}, "not found is requeued")
+					}
+				}
+				return nil
+			})
 		})
 
 		It("generates dockerConfigJson secret", func() {
