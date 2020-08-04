@@ -68,6 +68,10 @@ var (
 							Type:                   "object",
 							XPreserveUnknownFields: pointers.Bool(true),
 						},
+						"secretAnnotations": {
+							Type:                   "object",
+							XPreserveUnknownFields: pointers.Bool(true),
+						},
 					},
 					Required: []string{
 						"secretName",
