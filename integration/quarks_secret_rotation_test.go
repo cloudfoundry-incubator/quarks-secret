@@ -92,4 +92,61 @@ var _ = Describe("QuarksSecretRotation", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
+
+	When("rotating a ssh secret", func() {
+		BeforeEach(func() {
+			qsec = env.SSHQuarksSecret(qsecName)
+		})
+
+		It("modifies quarks secret and the secret is updated", func() {
+			err := env.WaitForQuarksSecretChange(env.Namespace, qsecName, func(qs qsv1a1.QuarksSecret) bool {
+				return notGenerated(qs.Status)
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			err = env.WaitForSecretChange(env.Namespace, qsec.Spec.SecretName, func(s corev1.Secret) bool {
+				return !bytes.Equal(oldSecret.Data["private_key"], s.Data["private_key"]) &&
+					!bytes.Equal(oldSecret.Data["public_key_fingerprint"], s.Data["public_key_fingerprint"])
+			})
+			Expect(err).NotTo(HaveOccurred())
+		})
+	})
+
+	When("rotating a rsa secret", func() {
+		BeforeEach(func() {
+			qsec = env.RSAQuarksSecret(qsecName)
+		})
+
+		It("modifies quarks secret and the secret is updated", func() {
+			err := env.WaitForQuarksSecretChange(env.Namespace, qsecName, func(qs qsv1a1.QuarksSecret) bool {
+				return notGenerated(qs.Status)
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			err = env.WaitForSecretChange(env.Namespace, qsec.Spec.SecretName, func(s corev1.Secret) bool {
+				return !bytes.Equal(oldSecret.Data["private_key"], s.Data["private_key"]) &&
+					!bytes.Equal(oldSecret.Data["public_key"], s.Data["public_key"])
+			})
+			Expect(err).NotTo(HaveOccurred())
+		})
+	})
+
+	When("rotating a basic-auth secret", func() {
+		BeforeEach(func() {
+			qsec = env.BasicAuthQuarksSecret(qsecName)
+		})
+
+		It("modifies quarks secret and the secret is updated", func() {
+			err := env.WaitForQuarksSecretChange(env.Namespace, qsecName, func(qs qsv1a1.QuarksSecret) bool {
+				return notGenerated(qs.Status)
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			err = env.WaitForSecretChange(env.Namespace, qsec.Spec.SecretName, func(s corev1.Secret) bool {
+				return !bytes.Equal(oldSecret.Data["password"], s.Data["password"]) &&
+					bytes.Equal(oldSecret.Data["username"], s.Data["username"])
+			})
+			Expect(err).NotTo(HaveOccurred())
+		})
+	})
 })
