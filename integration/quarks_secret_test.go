@@ -4,11 +4,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"code.cloudfoundry.org/quarks-secret/pkg/credsgen"
-	inmemorygenerator "code.cloudfoundry.org/quarks-secret/pkg/credsgen/in_memory_generator"
 	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
 	"code.cloudfoundry.org/quarks-utils/testing/machine"
 )
@@ -96,28 +91,11 @@ var _ = Describe("QuarksSecret", func() {
 
 	When("quarks secret is a certificate", func() {
 		BeforeEach(func() {
-			qs = env.CertificateQuarksSecret(qsName, "mysecret", "ca", "key")
+			qs = env.CertificateQuarksSecret(qsName, "my-ca", "ca", "key")
 			secretName = qs.Spec.SecretName
 
 			By("creating the CA and storing it in a secret")
-			generator := inmemorygenerator.NewInMemoryGenerator(env.Log)
-			ca, err := generator.GenerateCertificate("default-ca", credsgen.CertificateGenerationRequest{
-				CommonName: "Fake CA",
-				IsCA:       true,
-			})
-			Expect(err).ToNot(HaveOccurred())
-
-			casecret := corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysecret",
-					Namespace: env.Namespace,
-				},
-				Data: map[string][]byte{
-					"ca":  ca.Certificate,
-					"key": ca.PrivateKey,
-				},
-			}
-			tearDown, err := env.CreateSecret(env.Namespace, casecret)
+			tearDown, err := env.CreateCASecret(env.Log, env.Namespace, "my-ca")
 			Expect(err).NotTo(HaveOccurred())
 			tearDowns = append(tearDowns, tearDown)
 		})
