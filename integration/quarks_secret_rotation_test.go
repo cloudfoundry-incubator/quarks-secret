@@ -15,52 +15,140 @@ import (
 var _ = Describe("QuarksSecretRotation", func() {
 	var (
 		qsec      qsv1a1.QuarksSecret
-		secret    *corev1.Secret
+		oldSecret *corev1.Secret
 		tearDowns []machine.TearDownFunc
 	)
 
 	const (
-		qsecName   = "test.var-secret"
-		secretName = "generated-secret"
+		qsecName = "test.qsec"
 	)
 
-	BeforeEach(func() {
-		qsec = env.DefaultQuarksSecret(qsecName)
-		_, tearDown, err := env.CreateQuarksSecret(env.Namespace, qsec)
-		Expect(err).NotTo(HaveOccurred())
-		tearDowns = append(tearDowns, tearDown)
+	JustBeforeEach(func() {
+		By("Creating the quarks secret", func() {
+			_, tearDown, err := env.CreateQuarksSecret(env.Namespace, qsec)
+			Expect(err).NotTo(HaveOccurred())
+			tearDowns = append(tearDowns, tearDown)
 
-		secret, err = env.CollectSecret(env.Namespace, secretName)
-		Expect(err).NotTo(HaveOccurred())
+			oldSecret, err = env.CollectSecret(env.Namespace, qsec.Spec.SecretName)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		By("Rotating the secret", func() {
+			rotationConfig := env.RotationConfig(qsecName)
+			tearDown, err := env.CreateConfigMap(env.Namespace, rotationConfig)
+			Expect(err).NotTo(HaveOccurred())
+			tearDowns = append(tearDowns, tearDown)
+
+			err = env.WaitForConfigMap(env.Namespace, "rotation-config1")
+			Expect(err).NotTo(HaveOccurred())
+		})
 	})
 
 	AfterEach(func() {
 		Expect(env.TearDownAll(tearDowns)).To(Succeed())
 	})
 
-	Context("when creating a rotation config", func() {
+	When("rotating a password", func() {
 		var oldPassword []byte
 
 		BeforeEach(func() {
-			oldPassword = secret.Data["password"]
+			qsec = env.DefaultQuarksSecret(qsecName)
+		})
 
-			rotationConfig := env.RotationConfig(qsecName)
-			tearDown, err := env.CreateConfigMap(env.Namespace, rotationConfig)
+		It("modifies quarks secret and a a new password is generated", func() {
+			oldPassword = oldSecret.Data["password"]
+			err := env.WaitForSecretChange(env.Namespace, qsec.Spec.SecretName, func(s corev1.Secret) bool {
+				return !bytes.Equal(oldPassword, s.Data["password"])
+			})
+			Expect(err).NotTo(HaveOccurred())
+		})
+	})
+
+	When("rotating a certificate", func() {
+		BeforeEach(func() {
+			qsec = env.CertificateQuarksSecret(qsecName, "my-ca", "ca", "key")
+
+			By("creating the CA and storing it in a secret")
+			tearDown, err := env.CreateCASecret(env.Log, env.Namespace, "my-ca")
 			Expect(err).NotTo(HaveOccurred())
 			tearDowns = append(tearDowns, tearDown)
 		})
 
-		It("modifies quarks secret and a a new password is generated", func() {
-			err := env.WaitForConfigMap(env.Namespace, "rotation-config1")
-			Expect(err).NotTo(HaveOccurred())
-
-			err = env.WaitForQuarksSecretChange(env.Namespace, qsecName, func(qs qsv1a1.QuarksSecret) bool {
-				return qs.Status.Generated == nil || (qs.Status.Generated != nil && !*qs.Status.Generated)
+		It("modifies quarks secret and updates certificate and key", func() {
+			err := env.WaitForSecretChange(env.Namespace, qsec.Spec.SecretName, func(s corev1.Secret) bool {
+				return !bytes.Equal(oldSecret.Data["certificate"], s.Data["certificate"]) &&
+					!bytes.Equal(oldSecret.Data["private_key"], s.Data["private_key"])
 			})
 			Expect(err).NotTo(HaveOccurred())
+		})
+	})
 
-			err = env.WaitForSecretChange(env.Namespace, secretName, func(s corev1.Secret) bool {
-				return !bytes.Equal(oldPassword, s.Data["password"])
+	When("rotating a cluster signed certificate", func() {
+		BeforeEach(func() {
+			qsec = env.CertificateQuarksSecret(qsecName, "", "", "")
+			qsec.Spec.Request.CertificateRequest.SignerType = qsv1a1.ClusterSigner
+		})
+
+		It("modifies quarks secret and updates certificate and key", func() {
+			err := env.WaitForSecretChange(env.Namespace, qsec.Spec.SecretName, func(s corev1.Secret) bool {
+				return !bytes.Equal(oldSecret.Data["certificate"], s.Data["certificate"]) &&
+					!bytes.Equal(oldSecret.Data["private_key"], s.Data["private_key"])
+			})
+			Expect(err).NotTo(HaveOccurred())
+		})
+	})
+
+	When("rotating a CA certificate", func() {
+		BeforeEach(func() {
+			qsec = env.CACertificateQuarksSecret(qsecName, "", "", "")
+		})
+
+		It("modifies quarks secret and updates certificate and key", func() {
+			err := env.WaitForSecretChange(env.Namespace, qsec.Spec.SecretName, func(s corev1.Secret) bool {
+				return !bytes.Equal(oldSecret.Data["certificate"], s.Data["certificate"]) &&
+					!bytes.Equal(oldSecret.Data["private_key"], s.Data["private_key"])
+			})
+			Expect(err).NotTo(HaveOccurred())
+		})
+	})
+
+	When("rotating a ssh secret", func() {
+		BeforeEach(func() {
+			qsec = env.SSHQuarksSecret(qsecName)
+		})
+
+		It("modifies quarks secret and the secret is updated", func() {
+			err := env.WaitForSecretChange(env.Namespace, qsec.Spec.SecretName, func(s corev1.Secret) bool {
+				return !bytes.Equal(oldSecret.Data["private_key"], s.Data["private_key"]) &&
+					!bytes.Equal(oldSecret.Data["public_key_fingerprint"], s.Data["public_key_fingerprint"])
+			})
+			Expect(err).NotTo(HaveOccurred())
+		})
+	})
+
+	When("rotating a rsa secret", func() {
+		BeforeEach(func() {
+			qsec = env.RSAQuarksSecret(qsecName)
+		})
+
+		It("modifies quarks secret and the secret is updated", func() {
+			err := env.WaitForSecretChange(env.Namespace, qsec.Spec.SecretName, func(s corev1.Secret) bool {
+				return !bytes.Equal(oldSecret.Data["private_key"], s.Data["private_key"]) &&
+					!bytes.Equal(oldSecret.Data["public_key"], s.Data["public_key"])
+			})
+			Expect(err).NotTo(HaveOccurred())
+		})
+	})
+
+	When("rotating a basic-auth secret", func() {
+		BeforeEach(func() {
+			qsec = env.BasicAuthQuarksSecret(qsecName)
+		})
+
+		It("modifies quarks secret and the secret is updated", func() {
+			err := env.WaitForSecretChange(env.Namespace, qsec.Spec.SecretName, func(s corev1.Secret) bool {
+				return !bytes.Equal(oldSecret.Data["password"], s.Data["password"]) &&
+					bytes.Equal(oldSecret.Data["username"], s.Data["username"])
 			})
 			Expect(err).NotTo(HaveOccurred())
 		})

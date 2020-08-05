@@ -25,6 +25,28 @@ func (c *Catalog) DefaultQuarksSecret(name string) qsv1a1.QuarksSecret {
 	}
 }
 
+// CACertificateQuarksSecret for use in tests, creates a CA certificate
+func (c *Catalog) CACertificateQuarksSecret(name string, secretref string, cacertref string, keyref string) qsv1a1.QuarksSecret {
+	return qsv1a1.QuarksSecret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: qsv1a1.QuarksSecretSpec{
+			SecretName: "generated-cert-secret",
+			Type:       "certificate",
+			Request: qsv1a1.Request{
+				CertificateRequest: qsv1a1.CertificateRequest{
+					IsCA:             true,
+					CommonName:       "example.com",
+					CARef:            qsv1a1.SecretReference{Name: secretref, Key: cacertref},
+					CAKeyRef:         qsv1a1.SecretReference{Name: secretref, Key: keyref},
+					AlternativeNames: []string{"qux.com"},
+				},
+			},
+		},
+	}
+}
+
 // CertificateQuarksSecret for use in tests, creates a certificate
 func (c *Catalog) CertificateQuarksSecret(name string, secretref string, cacertref string, keyref string) qsv1a1.QuarksSecret {
 	return qsv1a1.QuarksSecret{
@@ -41,6 +63,48 @@ func (c *Catalog) CertificateQuarksSecret(name string, secretref string, cacertr
 					CAKeyRef:         qsv1a1.SecretReference{Name: secretref, Key: keyref},
 					AlternativeNames: []string{"qux.com"},
 				},
+			},
+		},
+	}
+}
+
+// SSHQuarksSecret returns a 'ssh' type quarks secret for testing
+func (c *Catalog) SSHQuarksSecret(name string) qsv1a1.QuarksSecret {
+	return qsv1a1.QuarksSecret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: qsv1a1.QuarksSecretSpec{
+			Type:       "ssh",
+			SecretName: "generated-ssh-secret",
+		},
+	}
+}
+
+// RSAQuarksSecret returns a 'rsa' type quarks secret for testing
+func (c *Catalog) RSAQuarksSecret(name string) qsv1a1.QuarksSecret {
+	return qsv1a1.QuarksSecret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: qsv1a1.QuarksSecretSpec{
+			Type:       "rsa",
+			SecretName: "generated-rsa-secret",
+		},
+	}
+}
+
+// BasicAuthQuarksSecret returns a 'basic auth' type quarks secret for testing
+func (c *Catalog) BasicAuthQuarksSecret(name string) qsv1a1.QuarksSecret {
+	return qsv1a1.QuarksSecret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: qsv1a1.QuarksSecretSpec{
+			Type:       "basic-auth",
+			SecretName: "generated-basic-auth-secret",
+			Request: qsv1a1.Request{
+				BasicAuthRequest: qsv1a1.BasicAuthRequest{Username: "some-passed-in-username"},
 			},
 		},
 	}

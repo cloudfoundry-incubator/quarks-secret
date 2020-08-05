@@ -7,11 +7,15 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
+	"code.cloudfoundry.org/quarks-secret/pkg/credsgen"
+	inmemorygenerator "code.cloudfoundry.org/quarks-secret/pkg/credsgen/in_memory_generator"
 	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
 	"code.cloudfoundry.org/quarks-secret/pkg/kube/client/clientset/versioned"
 	"code.cloudfoundry.org/quarks-utils/testing/machine"
@@ -60,4 +64,28 @@ func (m *Machine) WaitForQuarksSecretChange(namespace string, name string, chang
 
 		return changed(*qs), nil
 	})
+}
+
+// CreateCASecret creates a CA and stores it in a secret
+func (m *Machine) CreateCASecret(log *zap.SugaredLogger, namespace string, name string) (machine.TearDownFunc, error) {
+	generator := inmemorygenerator.NewInMemoryGenerator(log)
+	ca, err := generator.GenerateCertificate("default-ca", credsgen.CertificateGenerationRequest{
+		CommonName: "Fake CA",
+		IsCA:       true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	casecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			"ca":  ca.Certificate,
+			"key": ca.PrivateKey,
+		},
+	}
+	return m.CreateSecret(namespace, casecret)
 }
