@@ -46,6 +46,48 @@ func (c *Catalog) CertificateQuarksSecret(name string, secretref string, cacertr
 	}
 }
 
+// SSHQuarksSecret returns a 'ssh' type quarks secret for testing
+func (c *Catalog) SSHQuarksSecret(name string) qsv1a1.QuarksSecret {
+	return qsv1a1.QuarksSecret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: qsv1a1.QuarksSecretSpec{
+			Type:       "ssh",
+			SecretName: "generated-ssh-secret",
+		},
+	}
+}
+
+// RSAQuarksSecret returns a 'rsa' type quarks secret for testing
+func (c *Catalog) RSAQuarksSecret(name string) qsv1a1.QuarksSecret {
+	return qsv1a1.QuarksSecret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: qsv1a1.QuarksSecretSpec{
+			Type:       "rsa",
+			SecretName: "generated-rsa-secret",
+		},
+	}
+}
+
+// BasicAuthQuarksSecret returns a 'basic auth' type quarks secret for testing
+func (c *Catalog) BasicAuthQuarksSecret(name string) qsv1a1.QuarksSecret {
+	return qsv1a1.QuarksSecret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: qsv1a1.QuarksSecretSpec{
+			Type:       "basic-auth",
+			SecretName: "generated-basic-auth-secret",
+			Request: qsv1a1.Request{
+				BasicAuthRequest: qsv1a1.BasicAuthRequest{Username: "some-passed-in-username"},
+			},
+		},
+	}
+}
+
 // RotationConfig is a config map, which triggers secret rotation
 func (c *Catalog) RotationConfig(name string) corev1.ConfigMap {
 	return corev1.ConfigMap{
