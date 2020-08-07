@@ -1,17 +1,27 @@
 package main
 
 import (
-	"log"
+	"os"
+
+	utils "code.cloudfoundry.org/quarks-utils/pkg/cmd"
 
 	cmd "code.cloudfoundry.org/quarks-secret/cmd/internal"
-	"github.com/spf13/cobra/doc"
+)
+
+const (
+	index = `---
+title: "Quarks Job"
+linkTitle: "Quarks Job"
+weight: 20
+description: >
+    Quarks Job CLI options
+---
+	`
 )
 
 func main() {
-	operatorCommand := cmd.NewOperatorCommand()
-
-	err := doc.GenMarkdownTree(operatorCommand, "./docs/commands/")
-	if err != nil {
-		log.Fatal(err)
+	docDir := os.Args[1]
+	if err := utils.GenCLIDocsyMarkDown(cmd.NewOperatorCommand(), docDir, index); err != nil {
+		panic(err)
 	}
 }
