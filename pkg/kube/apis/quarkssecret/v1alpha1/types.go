@@ -19,11 +19,12 @@ type SecretType = string
 
 // Valid values for secret types
 const (
-	Password    SecretType = "password"
-	Certificate SecretType = "certificate"
-	SSHKey      SecretType = "ssh"
-	RSAKey      SecretType = "rsa"
-	BasicAuth   SecretType = "basic-auth"
+	Password         SecretType = "password"
+	Certificate      SecretType = "certificate"
+	SSHKey           SecretType = "ssh"
+	RSAKey           SecretType = "rsa"
+	BasicAuth        SecretType = "basic-auth"
+	DockerConfigJSON SecretType = "dockerconfigjson"
 )
 
 // SignerType defines the type of the certificate signer
@@ -98,10 +99,19 @@ type BasicAuthRequest struct {
 	Username string `json:"username"`
 }
 
+// ImageCredentialsRequest specifies the details for the image credentials
+type ImageCredentialsRequest struct {
+	Username SecretReference `json:"username"`
+	Password SecretReference `json:"password"`
+	Registry string          `json:"registry"`
+	Email    string          `json:"email"`
+}
+
 // Request specifies details for the secret generation
 type Request struct {
-	BasicAuthRequest   BasicAuthRequest   `json:"basic-auth"`
-	CertificateRequest CertificateRequest `json:"certificate"`
+	BasicAuthRequest        BasicAuthRequest        `json:"basic-auth"`
+	CertificateRequest      CertificateRequest      `json:"certificate"`
+	ImageCredentialsRequest ImageCredentialsRequest `json:"imageCredentials"`
 }
 
 // Copy defines the destination of a copied generated secret
