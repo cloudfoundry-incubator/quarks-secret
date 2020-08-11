@@ -1,17 +1,10 @@
 ARG BASE_IMAGE=registry.opensuse.org/cloud/platform/quarks/sle_15_sp1/quarks-operator-base:latest
 
-FROM golang:1.13.4 AS build
+FROM golang:1.14.7 AS build
 ARG GOPROXY
 ENV GOPROXY $GOPROXY
-ARG GO111MODULE="on"
-ENV GO111MODULE $GO111MODULE
 
 WORKDIR /go/src/code.cloudfoundry.org/quarks-secret
-
-# First, download dependencies so we can cache this layer
-COPY go.mod .
-COPY go.sum .
-RUN if [ "${GO111MODULE}" = "on" ]; then go mod download; fi
 
 # Copy the rest of the source code and build
 COPY . .
