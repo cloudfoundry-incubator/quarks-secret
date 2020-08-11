@@ -1,6 +1,6 @@
 module code.cloudfoundry.org/quarks-secret
 
-go 1.13
+go 1.14
 
 require (
 	code.cloudfoundry.org/quarks-utils v0.0.0-20200807052440-4e1e6a3a4aaf
