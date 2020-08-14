@@ -165,6 +165,17 @@ func (r *ReconcileQuarksSecret) Reconcile(request reconcile.Request) (reconcile.
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "generating basic-auth secret")
 		}
+	case qsv1a1.SecretCopy:
+		ctxlog.Info(ctx, "Copying secrets")
+		err = r.copySecrets(ctx, qsec)
+		if err != nil {
+			if isSecNotReady(err) {
+				ctxlog.Info(ctx, fmt.Sprintf("Secrets '%s' is not ready yet: %s", request.NamespacedName, err))
+				return reconcile.Result{RequeueAfter: time.Second * 5}, nil
+			}
+			ctxlog.Info(ctx, "Error generating Copying secret: "+err.Error())
+			return reconcile.Result{}, errors.Wrap(err, "copying secret")
+		}
 	case qsv1a1.DockerConfigJSON:
 		ctxlog.Info(ctx, "Generating dockerConfigJson")
 		err = r.createDockerConfigJSON(ctx, qsec)
@@ -569,6 +580,74 @@ func (r *ReconcileQuarksSecret) skipCopyCreation(ctx context.Context, qsec *qsv1
 	}
 
 	return false, nil
+}
+
+func (r *ReconcileQuarksSecret) copySecrets(ctx context.Context, qsec *qsv1a1.QuarksSecret) error {
+	secretToCopy := &corev1.Secret{}
+
+	if err := r.client.Get(ctx, types.NamespacedName{Name: qsec.Spec.SecretName, Namespace: qsec.GetNamespace()}, secretToCopy); err != nil {
+		if apierrors.IsNotFound(err) {
+			return newSecNotReadyError("secret to copy not found")
+		}
+		return err
+	}
+
+	// See if we have to make any copies
+	for _, copy := range qsec.Spec.Copies {
+		copiedSecret := &corev1.Secret{}
+		copiedSecret.Data = secretToCopy.Data
+		copiedSecret.Name = copy.Name
+		copiedSecret.Namespace = copy.Namespace
+		existingSecret := &corev1.Secret{}
+
+		if err := r.client.Get(ctx, types.NamespacedName{Name: copiedSecret.Name, Namespace: copiedSecret.Namespace}, existingSecret); err != nil && apierrors.IsNotFound(err) {
+			secretLabels := copiedSecret.GetLabels()
+			if secretLabels == nil {
+				secretLabels = map[string]string{}
+			}
+			secretAnnotations := existingSecret.GetAnnotations()
+			if secretAnnotations == nil {
+				secretAnnotations = map[string]string{}
+			}
+
+			secretLabels[qsv1a1.LabelKind] = qsv1a1.GeneratedSecretKind
+			secretAnnotations[qsv1a1.AnnotationCopyOf] = fmt.Sprintf("%s/%s", secretToCopy.Namespace, secretToCopy.Name)
+
+			copiedSecret.SetLabels(secretLabels)
+			copiedSecret.SetAnnotations(secretAnnotations)
+
+			// This set owner ref which is not possible across different namespaces.
+			// Should we create a fake qsec to set ownership to that one?
+			//if err := r.createSecret(ctx, qsec, copiedSecret); err != nil {
+			//		return err
+			//	}
+			// TODO: what about owner reference?
+			// if we copy to an external namespace, we must create an owner in that namespace. maybe a dummy qsec?
+			op, err := controllerutil.CreateOrUpdate(ctx, r.client, copiedSecret, mutate.SecretMutateFn(copiedSecret))
+			if err != nil {
+				return errors.Wrapf(err, "could not create or update secret '%s/%s'", copiedSecret.Namespace, copiedSecret.GetName())
+			}
+
+			if op != "unchanged" {
+				ctxlog.Debugf(ctx, "Secret '%s' has been %s", copiedSecret.Name, op)
+			}
+
+		} else {
+			secretLabels := existingSecret.GetLabels()
+			if secretLabels == nil {
+				secretLabels = map[string]string{}
+			}
+
+			// skip if the secret was not created by the operator
+			if secretLabels[qsv1a1.LabelKind] == qsv1a1.GeneratedSecretKind {
+				if err := r.updateCopySecret(ctx, qsec, copiedSecret); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func (r *ReconcileQuarksSecret) createSecrets(ctx context.Context, qsec *qsv1a1.QuarksSecret, secret *corev1.Secret) error {
