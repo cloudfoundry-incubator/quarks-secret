@@ -25,6 +25,7 @@ const (
 	RSAKey           SecretType = "rsa"
 	BasicAuth        SecretType = "basic-auth"
 	DockerConfigJSON SecretType = "dockerconfigjson"
+	SecretCopy       SecretType = "copy"
 )
 
 // SignerType defines the type of the certificate signer
