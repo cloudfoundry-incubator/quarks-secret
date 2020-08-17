@@ -520,7 +520,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 
 		const (
 			existing    = "default/existing-secret"
-			notExisting = "notdefault/generated-secret-copy"
+			notExisting = "default/generated-secret-copy"
 		)
 
 		BeforeEach(func() {
@@ -540,19 +540,14 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 				Spec: qsv1a1.QuarksSecretSpec{
 					Type:       "copy",
 					SecretName: "existing-secret",
-					Copies: []qsv1a1.Copy{
-						{
-							Name:      "generated-secret-copy",
-							Namespace: "notdefault",
-						},
-					},
+					SecretCopy: "generated-secret-copy",
 				},
 			}
 
 			client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
 				secret := object.(*corev1.Secret)
 				Expect(secret.Data["test"]).To(Equal([]byte("foo")))
-				Expect(secret.Namespace).To(Equal("notdefault"))
+				Expect(secret.Namespace).To(Equal("default"))
 				return nil
 			})
 
@@ -585,7 +580,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 			alreadyExistingSecret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "generated-secret-copy",
-					Namespace: "notdefault",
+					Namespace: "default",
 					Labels: map[string]string{
 						"quarks.cloudfoundry.org/secret-kind": "generated",
 					},
@@ -628,7 +623,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 			alreadyExistingSecret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "generated-secret-copy",
-					Namespace: "notdefault",
+					Namespace: "default",
 				},
 			}
 
