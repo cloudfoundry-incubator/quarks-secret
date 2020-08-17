@@ -129,37 +129,14 @@ var _ = Describe("Examples Directory", func() {
 	})
 
 	Context("quarks-secret copy type", func() {
-		var copyNamespace string
-		var tempQSecretFileName string
-
 		BeforeEach(func() {
-			copyNamespace = "qseccopy-" + strconv.Itoa(int(nsIndex)) + "-" +
-				strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
-
-			err := cmdHelper.CreateNamespace(copyNamespace)
-			Expect(err).ToNot(HaveOccurred())
-
 			quarksSecretExample := path.Join(examplesDir, "copy.yaml")
-			qSecret, err := ioutil.ReadFile(quarksSecretExample)
-			Expect(err).ToNot(HaveOccurred())
-			tmpQSecret, err := ioutil.TempFile(examplesDir, "qsec-*")
-			tempQSecretFileName = tmpQSecret.Name()
-			Expect(err).ToNot(HaveOccurred(), "creating tmp file in examples dir")
-			_, err = tmpQSecret.WriteString(
-				strings.ReplaceAll(
-					string(qSecret), "COPYNAMESPACE", copyNamespace,
-				))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(tmpQSecret.Close()).ToNot(HaveOccurred())
 
-			example = tempQSecretFileName
+			example = quarksSecretExample
 		})
 
 		AfterEach(func() {
-			err := cmdHelper.DeleteNamespace(copyNamespace)
-			Expect(err).ToNot(HaveOccurred())
-
-			err = os.Remove(tempQSecretFileName)
+			err := os.Remove(example)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -167,9 +144,9 @@ var _ = Describe("Examples Directory", func() {
 			By("Checking the copied secrets")
 			err := kubectl.WaitForSecret(namespace, "my-username")
 			Expect(err).ToNot(HaveOccurred(), "error waiting for secret")
-			err = kubectl.WaitForSecret(copyNamespace, "copied-secret-2")
+			err = kubectl.WaitForSecret(namespace, "copied-secret-2")
 			Expect(err).ToNot(HaveOccurred(), "error waiting for secret")
-			err = cmdHelper.SecretCheckData(copyNamespace, "copied-secret-2", ".data.username")
+			err = cmdHelper.SecretCheckData(namespace, "copied-secret-2", ".data.username")
 			Expect(err).ToNot(HaveOccurred())
 		})
 	})

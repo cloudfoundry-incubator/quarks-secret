@@ -50,6 +50,11 @@ var (
 							MinLength:   pointers.Int64(1),
 							Description: "What kind of secret to generate: password, certificate, ssh, rsa",
 						},
+						"secretCopy": {
+							Type:        "string",
+							MinLength:   pointers.Int64(1),
+							Description: "Where to copy the secret to with the 'copy' type",
+						},
 						"request": {
 							Type:                   "object",
 							XPreserveUnknownFields: pointers.Bool(true),
