@@ -34,16 +34,16 @@ import (
 
 var _ = Describe("ReconcileQuarksSecret", func() {
 	var (
-		manager          *cfakes.FakeManager
-		reconciler       reconcile.Reconciler
-		request          reconcile.Request
-		ctx              context.Context
-		log              *zap.SugaredLogger
-		config           *cfcfg.Config
-		client           *cfakes.FakeClient
-		generator        *generatorfakes.FakeGenerator
-		qSecret          *qsv1a1.QuarksSecret
-		setReferenceFunc func(owner, object metav1.Object, scheme *runtime.Scheme) error = func(owner, object metav1.Object, scheme *runtime.Scheme) error { return nil }
+		manager              *cfakes.FakeManager
+		reconciler           reconcile.Reconciler
+		request              reconcile.Request
+		ctx                  context.Context
+		log                  *zap.SugaredLogger
+		config               *cfcfg.Config
+		client               *cfakes.FakeClient
+		generator            *generatorfakes.FakeGenerator
+		qSecret, qSecretCopy *qsv1a1.QuarksSecret
+		setReferenceFunc     func(owner, object metav1.Object, scheme *runtime.Scheme) error = func(owner, object metav1.Object, scheme *runtime.Scheme) error { return nil }
 	)
 
 	BeforeEach(func() {
@@ -421,6 +421,22 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 				},
 			}
 
+			qSecretCopy = &qsv1a1.QuarksSecret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "generated-secret-copy",
+					Namespace: "notdefault",
+					Labels: map[string]string{
+						"quarks.cloudfoundry.org/secret-kind": "generated",
+					},
+					Annotations: map[string]string{
+						"quarks.cloudfoundry.org/secret-copy-of": "default/foo",
+					},
+				},
+				Spec: qsv1a1.QuarksSecretSpec{
+					Type: "copy",
+				},
+			}
+
 			qSecret = &qsv1a1.QuarksSecret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
@@ -441,9 +457,15 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 			client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
 				switch object := object.(type) {
 				case *qsv1a1.QuarksSecret:
-					qSecret.DeepCopyInto(object)
+					if nn.String() == "default/foo" {
+						qSecret.DeepCopyInto(object)
+					} else {
+						return errors.NewNotFound(schema.GroupResource{}, "not found")
+					}
 				case *corev1.Secret:
 					if nn.String() == "default/generated-secret" {
+						return errors.NewNotFound(schema.GroupResource{}, "not found")
+					} else {
 						return errors.NewNotFound(schema.GroupResource{}, "not found")
 					}
 				case *unstructured.Unstructured:
@@ -453,22 +475,24 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 						object.SetLabels(copiedSecret.Labels)
 						object.SetAnnotations(copiedSecret.Annotations)
 						object.Object["data"] = copiedSecret.Data
+					} else {
+						return errors.NewNotFound(schema.GroupResource{}, "not found")
 					}
 				}
 				return nil
 			})
 		})
 
-		It("it succeeds if everything is setup correctly", func() {
+		FIt("it succeeds if everything is setup correctly", func() {
 			result, err := reconciler.Reconcile(request)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(client.GetCallCount()).To(Equal(4))
+			Expect(client.GetCallCount()).To(Equal(5))
 			Expect(client.CreateCallCount()).To(Equal(1))
 			Expect(client.UpdateCallCount()).To(Equal(1))
 			Expect(reconcile.Result{}).To(Equal(result))
 		})
 
-		It("it doesn't copy if the copy secret is missing", func() {
+		FIt("it doesn't copy if the copy secret is missing", func() {
 			client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
 				switch object := object.(type) {
 				case *qsv1a1.QuarksSecret:
@@ -486,13 +510,13 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 
 			result, err := reconciler.Reconcile(request)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(client.GetCallCount()).To(Equal(4))
+			Expect(client.GetCallCount()).To(Equal(5))
 			Expect(client.CreateCallCount()).To(Equal(1))
 			Expect(client.UpdateCallCount()).To(Equal(0))
 			Expect(reconcile.Result{}).To(Equal(result))
 		})
 
-		It("it doesn't copy if the copy secret is missing a label", func() {
+		FIt("it doesn't copy if the copy secret is having an incorrect annotation", func() {
 			copiedSecret = &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "generated-secret-copy",
@@ -508,9 +532,46 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 
 			result, err := reconciler.Reconcile(request)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(client.GetCallCount()).To(Equal(4))
+			Expect(client.GetCallCount()).To(Equal(5))
 			Expect(client.CreateCallCount()).To(Equal(1))
 			Expect(client.UpdateCallCount()).To(Equal(0))
+			Expect(reconcile.Result{}).To(Equal(result))
+		})
+
+		FIt("does copy if a qsec copy type is specified", func() {
+
+			client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+
+				switch object := object.(type) {
+				case *qsv1a1.QuarksSecret:
+					if nn.String() == "default/foo" {
+						qSecret.DeepCopyInto(object)
+					} else if nn.String() == "notdefault/generated-secret-copy" {
+						qSecretCopy.DeepCopyInto(object)
+					} else {
+						return errors.NewNotFound(schema.GroupResource{}, "not found")
+					}
+				case *corev1.Secret:
+					if nn.String() == "default/generated-secret" {
+						return errors.NewNotFound(schema.GroupResource{}, "not found")
+
+					}
+					if nn.String() == "notdefault/generated-secret-copy" {
+						return errors.NewNotFound(schema.GroupResource{}, "not found")
+					}
+
+				case *unstructured.Unstructured:
+					return errors.NewNotFound(schema.GroupResource{}, "not found")
+				}
+				return nil
+			})
+
+			result, err := reconciler.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(client.GetCallCount()).To(Equal(6))
+			Expect(client.UpdateCallCount()).To(Equal(0))
+			Expect(client.CreateCallCount()).To(Equal(2))
+
 			Expect(reconcile.Result{}).To(Equal(result))
 		})
 	})
