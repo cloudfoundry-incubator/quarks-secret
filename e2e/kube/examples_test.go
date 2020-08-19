@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -25,7 +26,7 @@ var _ = Describe("Examples Directory", func() {
 
 	JustBeforeEach(func() {
 		kubectl = cmdHelper.NewKubectl()
-		yamlFilePath = path.Join(examplesDir, example)
+		yamlFilePath = path.Join(example)
 		err := cmdHelper.Create(namespace, yamlFilePath)
 		Expect(err).ToNot(HaveOccurred())
 	})
@@ -38,7 +39,7 @@ var _ = Describe("Examples Directory", func() {
 
 		Context("rotates the password secret", func() {
 			BeforeEach(func() {
-				example = "password.yaml"
+				example = filepath.Join(examplesDir, "password.yaml")
 			})
 
 			It("should change the password data", func() {
@@ -96,7 +97,7 @@ var _ = Describe("Examples Directory", func() {
 			quarksSecretExample := path.Join(examplesDir, "copies.yaml")
 			qSecret, err := ioutil.ReadFile(quarksSecretExample)
 			Expect(err).ToNot(HaveOccurred())
-			tmpQSecret, err := ioutil.TempFile(examplesDir, "qsec-*")
+			tmpQSecret, err := ioutil.TempFile(os.TempDir(), "qsec-*")
 			tempQSecretFileName = tmpQSecret.Name()
 			Expect(err).ToNot(HaveOccurred(), "creating tmp file in examples dir")
 			_, err = tmpQSecret.WriteString(
@@ -153,7 +154,7 @@ var _ = Describe("Examples Directory", func() {
 
 	Context("API server signed certificate example", func() {
 		BeforeEach(func() {
-			example = "certificate.yaml"
+			example = filepath.Join(examplesDir, "certificate.yaml")
 		})
 
 		It("creates a signed cert", func() {
@@ -167,7 +168,7 @@ var _ = Describe("Examples Directory", func() {
 
 	Context("self signed certificate example", func() {
 		BeforeEach(func() {
-			example = "loggregator-ca-cert.yaml"
+			example = filepath.Join(examplesDir, "loggregator-ca-cert.yaml")
 		})
 
 		It("creates a self-signed certificate", func() {
@@ -201,7 +202,7 @@ var _ = Describe("Examples Directory", func() {
 
 	Context("dockerConfigJson secret example", func() {
 		BeforeEach(func() {
-			example = "docker-registry-secret.yaml"
+			example = filepath.Join(examplesDir, "docker-registry-secret.yaml")
 		})
 
 		It("creates a dockerConfigJson secret", func() {
