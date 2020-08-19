@@ -69,7 +69,6 @@ var _ = Describe("Examples Directory", func() {
 		var tempQSecretFileName string
 
 		BeforeEach(func() {
-			// example = "copies.yaml"
 			copyNamespace = "qseccopy-" + strconv.Itoa(int(nsIndex)) + "-" +
 				strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
 
@@ -130,24 +129,74 @@ var _ = Describe("Examples Directory", func() {
 	})
 
 	Context("quarks-secret copy type", func() {
+		var copyNamespace string
+		var tempQSecretFileName string
+
 		BeforeEach(func() {
 			quarksSecretExample := path.Join(examplesDir, "copy.yaml")
 
-			example = quarksSecretExample
+			copyNamespace = "qseccopy-" + strconv.Itoa(int(nsIndex)) + "-" +
+				strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
+
+			err := cmdHelper.CreateNamespace(copyNamespace)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Create a copy of the example files with the correct namespaces in them
+			dSecretExample := path.Join(examplesDir, "copy-qsecret-destination.yaml")
+			dSecret, err := ioutil.ReadFile(dSecretExample)
+			Expect(err).ToNot(HaveOccurred())
+			tmpDSecret, err := ioutil.TempFile(os.TempDir(), "dsecret-*")
+			defer os.Remove(tmpDSecret.Name())
+			Expect(err).ToNot(HaveOccurred(), "creating tmp file")
+			_, err = tmpDSecret.WriteString(
+				strings.ReplaceAll(
+					strings.ReplaceAll(
+						string(dSecret), "COPYNAMESPACE", copyNamespace,
+					), "NAMESPACE", namespace))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(tmpDSecret.Close()).ToNot(HaveOccurred())
+
+			// Create a secret in the copy namespace
+			qSecret, err := ioutil.ReadFile(quarksSecretExample)
+			Expect(err).ToNot(HaveOccurred())
+			tmpQSecret, err := ioutil.TempFile(os.TempDir(), "qsec-*")
+			tempQSecretFileName = tmpQSecret.Name()
+			Expect(err).ToNot(HaveOccurred(), "creating tmp file in examples dir")
+			_, err = tmpQSecret.WriteString(
+				strings.ReplaceAll(
+					string(qSecret), "COPYNAMESPACE", copyNamespace,
+				))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(tmpQSecret.Close()).ToNot(HaveOccurred())
+
+			//Create the destination secret
+			err = cmdHelper.Create(copyNamespace, tmpDSecret.Name())
+			Expect(err).ToNot(HaveOccurred())
+
+			example = tempQSecretFileName
+
 		})
 
 		AfterEach(func() {
-			err := os.Remove(example)
+
+			err := cmdHelper.DeleteNamespace(copyNamespace)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = os.Remove(example)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("are created if everything is setup correctly", func() {
+			By("Checking the generated secrets")
+			err := kubectl.WaitForSecret(namespace, "gen-secret")
+			Expect(err).ToNot(HaveOccurred(), "error waiting for secret")
 			By("Checking the copied secrets")
-			err := kubectl.WaitForSecret(namespace, "my-username")
+
+			err = kubectl.WaitForSecret(copyNamespace, "copied-secret")
 			Expect(err).ToNot(HaveOccurred(), "error waiting for secret")
-			err = kubectl.WaitForSecret(namespace, "copied-secret-2")
-			Expect(err).ToNot(HaveOccurred(), "error waiting for secret")
-			err = cmdHelper.SecretCheckData(namespace, "copied-secret-2", ".data.username")
+			By("Checking the copied secrets contents")
+
+			err = cmdHelper.SecretCheckData(copyNamespace, "copied-secret", ".data.password")
 			Expect(err).ToNot(HaveOccurred())
 		})
 	})

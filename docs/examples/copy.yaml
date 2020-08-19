@@ -4,13 +4,8 @@ kind: QuarksSecret
 metadata:
   name: copy-user
 spec:
-  type: copy
-  secretName: my-username
-  secretCopy: copied-secret-2
----
-apiVersion: v1
-kind: Secret
-stringData:
-  username: fake-username
-metadata:
-  name: my-username
+  type: password
+  secretName: gen-secret
+  copies:
+  - name: copied-secret
+    namespace: COPYNAMESPACE
