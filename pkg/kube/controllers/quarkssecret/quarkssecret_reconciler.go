@@ -507,9 +507,10 @@ func (r *ReconcileQuarksSecret) skipCreation(ctx context.Context, qsec *qsv1a1.Q
 }
 
 // Skip copy creation when
-// * secret doesn't exist
-// * secret exists, but it's not marked as generated (label) and a copy (annotation)
-func (r *ReconcileQuarksSecret) skipCopy(ctx context.Context, qsec *qsv1a1.QuarksSecret, copyOf string) (bool, bool, error) {
+// * secret and qsecret (copy type) doesn't exist
+// * (q)secret exists, but it's not marked as generated (label) and a copy (annotation)
+func (r *ReconcileQuarksSecret) skipCopy(ctx context.Context, qsec *qsv1a1.QuarksSecret, sourceQsec *qsv1a1.QuarksSecret) (bool, bool, error) {
+	copyOf := sourceQsec.GetNamespacedName()
 	if qsec.Status.Generated != nil && *qsec.Status.Generated {
 		ctxlog.Debugf(ctx, "Existing secret %s/%s has already been generated",
 			qsec.Namespace,
@@ -551,11 +552,15 @@ func (r *ReconcileQuarksSecret) skipCopy(ctx context.Context, qsec *qsv1a1.Quark
 		}
 	}
 
+	// If both are absent, we will skip the copy
 	if notFoundSec && notFoundQsec {
-		return true, false, nil // no qsec/sec found
+		ctxlog.WithEvent(sourceQsec, "SkipCreation").Infof(ctx, "No Valid QSecret or Secret found")
+		return true, false, nil
 	}
 
 	if notFoundSec {
+		// Validate QSecret
+		ctxlog.WithEvent(sourceQsec, "SkipCreation").Infof(ctx, "Valid QSecret found")
 
 		secretLabels := existingQSec.GetLabels()
 		if secretLabels == nil {
@@ -566,15 +571,15 @@ func (r *ReconcileQuarksSecret) skipCopy(ctx context.Context, qsec *qsv1a1.Quark
 		if secretAnnotations == nil {
 			secretAnnotations = map[string]string{}
 		}
+
 		if existingQSec.Spec.Type != qsv1a1.SecretCopy {
-			// Not a copy type
+			ctxlog.WithEvent(sourceQsec, "SkipCreation").Infof(ctx, "Invalid type for QSecret. It must be 'copy' type.")
 			return true, false, nil
 		}
 
-		return !validateCopySecret(secretLabels, secretAnnotations, copyOf), true, nil
-
+		return !validateCopySecret(ctx, sourceQsec, secretLabels, secretAnnotations, copyOf), true, nil
 	} else if notFoundQsec {
-
+		// Validate Secret
 		secretLabels := existingSecret.GetLabels()
 		if secretLabels == nil {
 			secretLabels = map[string]string{}
@@ -585,24 +590,25 @@ func (r *ReconcileQuarksSecret) skipCopy(ctx context.Context, qsec *qsv1a1.Quark
 			secretAnnotations = map[string]string{}
 		}
 
-		return !validateCopySecret(secretLabels, secretAnnotations, copyOf), false, nil
-
+		return !validateCopySecret(ctx, sourceQsec, secretLabels, secretAnnotations, copyOf), false, nil
 	}
 
 	return true, false, nil
 }
 
-func validateCopySecret(secretLabels, secretAnnotations map[string]string, copyOf string) bool {
+func validateCopySecret(ctx context.Context, qsec *qsv1a1.QuarksSecret, secretLabels, secretAnnotations map[string]string, copyOf string) bool {
 
 	valid := true
 
 	// check if the secret is marked as generated
 	if secretLabels[qsv1a1.LabelKind] != qsv1a1.GeneratedSecretKind {
+		ctxlog.WithEvent(qsec, "SkipCopyCreation").Infof(ctx, "Secret doesn't have generated label")
 		valid = false
 	}
 
 	// skip if this is a copy, and we're missing a copy-of label
 	if secretAnnotations[qsv1a1.AnnotationCopyOf] != copyOf {
+		ctxlog.WithEvent(qsec, "SkipCopyCreation").Infof(ctx, "Secret doesn't have the corresponding annotation %s vs %s", secretAnnotations[qsv1a1.AnnotationCopyOf], copyOf)
 		valid = false
 	}
 
@@ -628,24 +634,27 @@ func (r *ReconcileQuarksSecret) createSecrets(ctx context.Context, qsec *qsv1a1.
 	// See if we have to make any copies
 	for _, copy := range qsec.Spec.Copies {
 		copiedQSec := qsec.DeepCopy()
-		copiedSecret := secret.DeepCopy()
+		copiedSecret := &corev1.Secret{}
 
 		copiedQSec.Spec.SecretName = copy.Name
 		copiedQSec.Namespace = copy.Namespace
 		copiedSecret.Name = copy.Name
 		copiedSecret.Namespace = copy.Namespace
+		copiedSecret.Data = secret.Data
+		copiedSecret.Annotations = secret.Annotations
+		copiedSecret.Labels = secret.Labels
 
-		// We look and see if we the secret is the generated type
+		// We look and see if the secret is of the generated type
 		// And also check if we're allowed to create the resource in the target namespace
 		// We require an existing secret or qsecret with a label already be present in the target namespace
-		skip, needsCreation, err := r.skipCopy(ctx, copiedQSec, qsec.GetNamespacedName())
+		skip, needsCreation, err := r.skipCopy(ctx, copiedQSec, qsec)
 		if err != nil {
 			ctxlog.Errorf(ctx, "Error reading the secret: %v", err.Error())
 		}
 		if skip {
-			ctxlog.WithEvent(qsec, "SkipCreation").Infof(ctx, "Skip creation: Secret '%s' must exist and have the appropriate labels and annotations to receive a copy", copy.String())
+			ctxlog.WithEvent(qsec, "SkipCreation").Infof(ctx, "Skip copy creation: Secret/QSecret '%s' must exist and have the appropriate labels and annotations to receive a copy", copy.String())
 		} else if needsCreation {
-			if err := r.createCopySecret(ctx, qsec, copiedSecret); err != nil {
+			if err := r.createCopySecret(ctx, copiedQSec, copiedSecret, qsec.GetNamespacedName()); err != nil {
 				return err
 			}
 		} else {
@@ -659,7 +668,7 @@ func (r *ReconcileQuarksSecret) createSecrets(ctx context.Context, qsec *qsv1a1.
 }
 
 // createCopySecret applies common properties(labels and ownerReferences) to the secret and creates it
-func (r *ReconcileQuarksSecret) createCopySecret(ctx context.Context, qsec *qsv1a1.QuarksSecret, secret *corev1.Secret) error {
+func (r *ReconcileQuarksSecret) createCopySecret(ctx context.Context, qsec *qsv1a1.QuarksSecret, secret *corev1.Secret, copyOf string) error {
 	ctxlog.Debugf(ctx, "Creating secret '%s/%s', owned by quarks secret '%s'", secret.Namespace, secret.Name, qsec.GetNamespacedName())
 
 	secretLabels := secret.GetLabels()
@@ -673,7 +682,7 @@ func (r *ReconcileQuarksSecret) createCopySecret(ctx context.Context, qsec *qsv1
 	}
 
 	secretLabels[qsv1a1.LabelKind] = qsv1a1.GeneratedSecretKind
-	secretAnnotations[qsv1a1.AnnotationCopyOf] = qsec.GetNamespacedName()
+	secretAnnotations[qsv1a1.AnnotationCopyOf] = copyOf
 
 	secret.SetLabels(secretLabels)
 	secret.SetAnnotations(secretAnnotations)

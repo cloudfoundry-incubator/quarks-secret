@@ -130,7 +130,6 @@ func (c *Copy) String() string {
 type QuarksSecretSpec struct {
 	Type              SecretType        `json:"type"`
 	Request           Request           `json:"request"`
-	SecretCopy        string            `json:"secretCopy,omitempty"`
 	SecretName        string            `json:"secretName"`
 	Copies            []Copy            `json:"copies,omitempty"`
 	SecretLabels      map[string]string `json:"secretLabels,omitempty"`
