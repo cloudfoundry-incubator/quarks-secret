@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -25,7 +26,7 @@ var _ = Describe("Examples Directory", func() {
 
 	JustBeforeEach(func() {
 		kubectl = cmdHelper.NewKubectl()
-		yamlFilePath = path.Join(examplesDir, example)
+		yamlFilePath = path.Join(example)
 		err := cmdHelper.Create(namespace, yamlFilePath)
 		Expect(err).ToNot(HaveOccurred())
 	})
@@ -38,7 +39,7 @@ var _ = Describe("Examples Directory", func() {
 
 		Context("rotates the password secret", func() {
 			BeforeEach(func() {
-				example = "password.yaml"
+				example = filepath.Join(examplesDir, "password.yaml")
 			})
 
 			It("should change the password data", func() {
@@ -68,7 +69,6 @@ var _ = Describe("Examples Directory", func() {
 		var tempQSecretFileName string
 
 		BeforeEach(func() {
-			// example = "copies.yaml"
 			copyNamespace = "qseccopy-" + strconv.Itoa(int(nsIndex)) + "-" +
 				strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
 
@@ -96,7 +96,7 @@ var _ = Describe("Examples Directory", func() {
 			quarksSecretExample := path.Join(examplesDir, "copies.yaml")
 			qSecret, err := ioutil.ReadFile(quarksSecretExample)
 			Expect(err).ToNot(HaveOccurred())
-			tmpQSecret, err := ioutil.TempFile(examplesDir, "qsec-*")
+			tmpQSecret, err := ioutil.TempFile(os.TempDir(), "qsec-*")
 			tempQSecretFileName = tmpQSecret.Name()
 			Expect(err).ToNot(HaveOccurred(), "creating tmp file in examples dir")
 			_, err = tmpQSecret.WriteString(
@@ -128,9 +128,82 @@ var _ = Describe("Examples Directory", func() {
 		})
 	})
 
+	Context("quarks-secret copy type", func() {
+		var copyNamespace string
+		var tempQSecretFileName string
+
+		BeforeEach(func() {
+			quarksSecretExample := path.Join(examplesDir, "copy.yaml")
+
+			copyNamespace = "qseccopy-" + strconv.Itoa(int(nsIndex)) + "-" +
+				strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
+
+			err := cmdHelper.CreateNamespace(copyNamespace)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Create a copy of the example files with the correct namespaces in them
+			dSecretExample := path.Join(examplesDir, "copy-qsecret-destination.yaml")
+			dSecret, err := ioutil.ReadFile(dSecretExample)
+			Expect(err).ToNot(HaveOccurred())
+			tmpDSecret, err := ioutil.TempFile(os.TempDir(), "dsecret-*")
+			defer os.Remove(tmpDSecret.Name())
+			Expect(err).ToNot(HaveOccurred(), "creating tmp file")
+			_, err = tmpDSecret.WriteString(
+				strings.ReplaceAll(
+					strings.ReplaceAll(
+						string(dSecret), "COPYNAMESPACE", copyNamespace,
+					), "NAMESPACE", namespace))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(tmpDSecret.Close()).ToNot(HaveOccurred())
+
+			// Create a secret in the copy namespace
+			qSecret, err := ioutil.ReadFile(quarksSecretExample)
+			Expect(err).ToNot(HaveOccurred())
+			tmpQSecret, err := ioutil.TempFile(os.TempDir(), "qsec-*")
+			tempQSecretFileName = tmpQSecret.Name()
+			Expect(err).ToNot(HaveOccurred(), "creating tmp file in examples dir")
+			_, err = tmpQSecret.WriteString(
+				strings.ReplaceAll(
+					string(qSecret), "COPYNAMESPACE", copyNamespace,
+				))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(tmpQSecret.Close()).ToNot(HaveOccurred())
+
+			//Create the destination secret
+			err = cmdHelper.Create(copyNamespace, tmpDSecret.Name())
+			Expect(err).ToNot(HaveOccurred())
+
+			example = tempQSecretFileName
+
+		})
+
+		AfterEach(func() {
+
+			err := cmdHelper.DeleteNamespace(copyNamespace)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = os.Remove(example)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("are created if everything is setup correctly", func() {
+			By("Checking the generated secrets")
+			err := kubectl.WaitForSecret(namespace, "gen-secret")
+			Expect(err).ToNot(HaveOccurred(), "error waiting for secret")
+			By("Checking the copied secrets")
+
+			err = kubectl.WaitForSecret(copyNamespace, "copied-secret")
+			Expect(err).ToNot(HaveOccurred(), "error waiting for secret")
+			By("Checking the copied secrets contents")
+
+			err = cmdHelper.SecretCheckData(copyNamespace, "copied-secret", ".data.password")
+			Expect(err).ToNot(HaveOccurred())
+		})
+	})
+
 	Context("API server signed certificate example", func() {
 		BeforeEach(func() {
-			example = "certificate.yaml"
+			example = filepath.Join(examplesDir, "certificate.yaml")
 		})
 
 		It("creates a signed cert", func() {
@@ -144,7 +217,7 @@ var _ = Describe("Examples Directory", func() {
 
 	Context("self signed certificate example", func() {
 		BeforeEach(func() {
-			example = "loggregator-ca-cert.yaml"
+			example = filepath.Join(examplesDir, "loggregator-ca-cert.yaml")
 		})
 
 		It("creates a self-signed certificate", func() {
@@ -178,7 +251,7 @@ var _ = Describe("Examples Directory", func() {
 
 	Context("dockerConfigJson secret example", func() {
 		BeforeEach(func() {
-			example = "docker-registry-secret.yaml"
+			example = filepath.Join(examplesDir, "docker-registry-secret.yaml")
 		})
 
 		It("creates a dockerConfigJson secret", func() {

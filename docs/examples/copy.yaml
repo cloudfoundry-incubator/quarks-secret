@@ -1,0 +1,11 @@
+---
+apiVersion: quarks.cloudfoundry.org/v1alpha1
+kind: QuarksSecret
+metadata:
+  name: copy-user
+spec:
+  type: password
+  secretName: gen-secret
+  copies:
+  - name: copied-secret
+    namespace: COPYNAMESPACE
