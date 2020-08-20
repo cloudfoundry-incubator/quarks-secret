@@ -1,0 +1,7 @@
+apiVersion: quarks.cloudfoundry.org/v1alpha1
+kind: QuarksSecret
+metadata:
+  name: generate-rsa-keys-example
+spec:
+  secretName: rsa-keys-1
+  type: rsa

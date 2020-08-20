@@ -249,6 +249,30 @@ var _ = Describe("Examples Directory", func() {
 		})
 	})
 
+	Context("rsa keys example", func() {
+		var (
+			privateKey []byte
+			publicKey  []byte
+		)
+
+		BeforeEach(func() {
+			example = filepath.Join(examplesDir, "rsa.yaml")
+		})
+
+		It("should generate the rsa keys data", func() {
+			By("Creating the rsa secret")
+			expectedSecretName := "rsa-keys-1"
+			err := kubectl.WaitForSecret(namespace, expectedSecretName)
+			Expect(err).ToNot(HaveOccurred())
+			privateKey, err = cmdHelper.GetData(namespace, "secret", expectedSecretName, "go-template={{.data.private_key}}")
+			Expect(err).ToNot(HaveOccurred())
+			publicKey, err = cmdHelper.GetData(namespace, "secret", expectedSecretName, "go-template={{.data.public_key}}")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(privateKey).NotTo(BeNil())
+			Expect(publicKey).NotTo(BeNil())
+		})
+	})
+
 	Context("dockerConfigJson secret example", func() {
 		BeforeEach(func() {
 			example = filepath.Join(examplesDir, "docker-registry-secret.yaml")
