@@ -22,4 +22,5 @@ A QuarksSecret allows the developers to deal with the management of credentials.
 * Slack: #quarks-dev on <https://slack.cloudfoundry.org>
 * Backlog: [Pivotal Tracker](https://www.pivotaltracker.com/n/projects/2192232)
 * Docker: https://hub.docker.com/r/cfcontainerization/cf-operator/tags
+* Dev Guide: [CONTRIBUTING.md](/CONTRIBUTING.md)
 * Documentation: [quarks.suse.dev](https://quarks.suse.dev)
