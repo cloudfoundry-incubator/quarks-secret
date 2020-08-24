@@ -8,6 +8,7 @@ WORKDIR /go/src/code.cloudfoundry.org/quarks-secret
 
 # Copy the rest of the source code and build
 COPY . .
+RUN make tools
 RUN bin/build && \
     cp -p binaries/quarks-secret /usr/local/bin/quarks-secret
 
