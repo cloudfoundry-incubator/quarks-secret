@@ -28,6 +28,13 @@ type Machine struct {
 	VersionedClientset *versioned.Clientset
 }
 
+// GetQuarksSecret gets an QuarksSecret custom resource
+func (m *Machine) GetQuarksSecret(namespace string, name string) (*qsv1a1.QuarksSecret, error) {
+	client := m.VersionedClientset.QuarkssecretV1alpha1().QuarksSecrets(namespace)
+	d, err := client.Get(context.Background(), name, metav1.GetOptions{})
+	return d, err
+}
+
 // CreateQuarksSecret creates a QuarksSecret custom resource and returns a function to delete it
 func (m *Machine) CreateQuarksSecret(namespace string, qs qsv1a1.QuarksSecret) (*qsv1a1.QuarksSecret, machine.TearDownFunc, error) {
 	client := m.VersionedClientset.QuarkssecretV1alpha1().QuarksSecrets(namespace)

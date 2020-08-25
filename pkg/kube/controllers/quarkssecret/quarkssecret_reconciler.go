@@ -465,13 +465,13 @@ func (r *ReconcileQuarksSecret) createDockerConfigJSON(ctx context.Context, qsec
 // Skip creation when
 // * secret is already generated according to qsecs status field
 // * secret exists, but was not generated (user created secret)
-func (r *ReconcileQuarksSecret) skipCreation(ctx context.Context, qsec *qsv1a1.QuarksSecret) (bool, error) {
+func (r *ReconcileQuarksSecret) skipCreation(ctx context.Context, qsec *qsv1a1.QuarksSecret) (bool, *corev1.Secret, error) {
 	if qsec.Status.Generated != nil && *qsec.Status.Generated {
 		ctxlog.Debugf(ctx, "Existing secret %s/%s has already been generated",
 			qsec.Namespace,
 			qsec.Spec.SecretName,
 		)
-		return true, nil
+		return true, nil, nil
 	}
 
 	secretName := qsec.Spec.SecretName
@@ -481,10 +481,10 @@ func (r *ReconcileQuarksSecret) skipCreation(ctx context.Context, qsec *qsv1a1.Q
 	err := r.client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: qsec.GetNamespace()}, existingSecret)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return false, nil
+			return false, nil, nil
 		}
 
-		return false, errors.Wrapf(err, "could not get secret")
+		return false, nil, errors.Wrapf(err, "could not get secret")
 	}
 
 	secretLabels := existingSecret.GetLabels()
@@ -500,10 +500,10 @@ func (r *ReconcileQuarksSecret) skipCreation(ctx context.Context, qsec *qsv1a1.Q
 			qsv1a1.LabelKind,
 			qsv1a1.GeneratedSecretKind,
 		)
-		return true, nil
+		return true, existingSecret, nil
 	}
 
-	return false, nil
+	return false, nil, nil
 }
 
 // Skip copy creation when
@@ -534,7 +534,7 @@ func (r *ReconcileQuarksSecret) skipCopy(ctx context.Context, qsec *qsv1a1.Quark
 
 	// We want to create the secret if a qsec is present, or update a secret if the secret is already there (with the correct annotation)
 	existingQSec := &qsv1a1.QuarksSecret{}
-	err := r.client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: qsec.GetNamespace()}, existingQSec)
+	err := r.client.Get(ctx, types.NamespacedName{Name: qsec.Name, Namespace: qsec.GetNamespace()}, existingQSec)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			notFoundQsec = true
@@ -619,18 +619,20 @@ func (r *ReconcileQuarksSecret) createSecrets(ctx context.Context, qsec *qsv1a1.
 	// Create the main secret
 	// Check if allowed to generate secret, could be already done or
 	// created manually by a user
-	skipCreation, err := r.skipCreation(ctx, qsec)
+	skipCreation, existingSecret, err := r.skipCreation(ctx, qsec)
 	if err != nil {
 		ctxlog.Errorf(ctx, "Error reading the secret: %v", err.Error())
 	}
 	if skipCreation {
 		ctxlog.WithEvent(qsec, "SkipCreation").Infof(ctx, "Skip creation: Secret '%s/%s' already exists and it's not generated", qsec.Namespace, qsec.Spec.SecretName)
+		secret = existingSecret
 	} else {
 		if err := r.createSecret(ctx, qsec, secret); err != nil {
 			return err
 		}
 	}
 
+	ctxlog.Infof(ctx, "%v", qsec.Spec.Copies)
 	// See if we have to make any copies
 	for _, copy := range qsec.Spec.Copies {
 		copiedQSec := qsec.DeepCopy()
@@ -657,10 +659,13 @@ func (r *ReconcileQuarksSecret) createSecrets(ctx context.Context, qsec *qsv1a1.
 			if err := r.createCopySecret(ctx, copiedQSec, copiedSecret, qsec.GetNamespacedName()); err != nil {
 				return err
 			}
+			ctxlog.WithEvent(qsec, "SkipCreation").Infof(ctx, "Copy secret '%s' has been created in namespace '%s'", copy.Name, copy.Namespace)
 		} else {
+			ctxlog.Infof(ctx, "%v", copiedSecret.Data)
 			if err := r.updateCopySecret(ctx, qsec, copiedSecret); err != nil {
 				return err
 			}
+			ctxlog.WithEvent(qsec, "SkipCreation").Infof(ctx, "Copy secret '%s' has been updated in namespace '%s'", copy.Name, copy.Namespace)
 		}
 	}
 
