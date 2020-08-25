@@ -569,7 +569,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 
 			result, err := reconciler.Reconcile(request)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(client.GetCallCount()).To(Equal(6))
+			Expect(client.GetCallCount()).To(Equal(5))
 			Expect(client.UpdateCallCount()).To(Equal(0))
 			Expect(client.CreateCallCount()).To(Equal(2))
 
