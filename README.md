@@ -13,7 +13,7 @@ A QuarksSecret allows the developers to deal with the management of credentials.
 - The generated credentials can be rotated by specifying its quarkssecret’s name in a configmap.
 - When a certificate is generated, `QuarksSecret` ensures that a certificate signing request is generated and is approved by the Kubernetes API server
 
-[See the official documentation for more informations](https://quarks.suse.dev/docs/components/quarkssecret/)
+[See the official documentation for more informations](https://quarks.suse.dev/docs/quarks-secret/)
 
 ----
 
