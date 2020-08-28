@@ -311,6 +311,23 @@ var _ = Describe("Examples Directory", func() {
 		})
 	})
 
+	Context("templatedConfig example", func() {
+		BeforeEach(func() {
+			example = filepath.Join(examplesDir, "templated-config.yaml")
+		})
+
+		It("should generate the templatedConfig", func() {
+			By("Creating the password secret")
+			expectedSecretName := "templated-secret"
+			err := kubectl.WaitForSecret(namespace, expectedSecretName)
+			Expect(err).ToNot(HaveOccurred())
+			password, err := cmdHelper.GetData(namespace, "secret", expectedSecretName, "go-template={{.data.foo}}")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(password).NotTo(BeNil())
+			Expect(len(password)).NotTo(Equal(0))
+		})
+	})
+
 	Context("dockerConfigJson secret example", func() {
 		BeforeEach(func() {
 			example = filepath.Join(examplesDir, "docker-registry-secret.yaml")
