@@ -14,6 +14,15 @@ import (
 // It's used as input for the Kube code generator
 // Run "make generate" after modifying this file
 
+// ReferenceType lists all the types of Reference we can supports
+type ReferenceType = string
+
+// Valid values for ref types
+const (
+	// SecretReference represents Secret reference
+	KubeSecretReference ReferenceType = "secret"
+)
+
 // SecretType defines the type of the generated secret
 type SecretType = string
 
@@ -51,6 +60,9 @@ var (
 	AnnotationCertSecretName = fmt.Sprintf("%s/cert-secret-name", apis.GroupName)
 	// AnnotationQSecName is the annotation key for the name of the owning quarks secret
 	AnnotationQSecName = fmt.Sprintf("%s/quarks-secret-name", apis.GroupName)
+	// AnnotationUserCreatedSecret is the annotation key for user created secret
+	// for quarks secret
+	AnnotationUserCreatedSecret = fmt.Sprintf("%s/user-created-secret", apis.GroupName)
 	// AnnotationQSecNamespace is the annotation key for quarks secret namespace
 	// since CSR are not namespaced
 	AnnotationQSecNamespace = fmt.Sprintf("%s/quarks-secret-namespace", apis.GroupName)
