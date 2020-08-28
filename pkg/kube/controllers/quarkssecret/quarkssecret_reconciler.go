@@ -121,6 +121,7 @@ func (r *ReconcileQuarksSecret) Reconcile(request reconcile.Request) (reconcile.
 		ctxlog.Info(ctx, "Error reading the object")
 		return reconcile.Result{}, errors.Wrap(err, "Error reading quarksSecret")
 	}
+
 	if meltdown.NewWindow(r.config.MeltdownDuration, qsec.Status.LastReconcile).Contains(time.Now()) {
 		ctxlog.WithEvent(qsec, "Meltdown").Debugf(ctx, "Resource '%s' is in meltdown, requeue reconcile after %s", qsec.GetNamespacedName(), r.config.MeltdownRequeueAfter)
 		return reconcile.Result{RequeueAfter: r.config.MeltdownRequeueAfter}, nil
@@ -465,13 +466,13 @@ func (r *ReconcileQuarksSecret) createDockerConfigJSON(ctx context.Context, qsec
 // Skip creation when
 // * secret is already generated according to qsecs status field
 // * secret exists, but was not generated (user created secret)
-func (r *ReconcileQuarksSecret) skipCreation(ctx context.Context, qsec *qsv1a1.QuarksSecret) (bool, error) {
+func (r *ReconcileQuarksSecret) skipCreation(ctx context.Context, qsec *qsv1a1.QuarksSecret) (bool, *corev1.Secret, error) {
 	if qsec.Status.Generated != nil && *qsec.Status.Generated {
 		ctxlog.Debugf(ctx, "Existing secret %s/%s has already been generated",
 			qsec.Namespace,
 			qsec.Spec.SecretName,
 		)
-		return true, nil
+		return true, nil, nil
 	}
 
 	secretName := qsec.Spec.SecretName
@@ -481,10 +482,9 @@ func (r *ReconcileQuarksSecret) skipCreation(ctx context.Context, qsec *qsv1a1.Q
 	err := r.client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: qsec.GetNamespace()}, existingSecret)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return false, nil
+			return false, nil, nil
 		}
-
-		return false, errors.Wrapf(err, "could not get secret")
+		return false, nil, errors.Wrapf(err, "could not get secret")
 	}
 
 	secretLabels := existingSecret.GetLabels()
@@ -500,23 +500,23 @@ func (r *ReconcileQuarksSecret) skipCreation(ctx context.Context, qsec *qsv1a1.Q
 			qsv1a1.LabelKind,
 			qsv1a1.GeneratedSecretKind,
 		)
-		return true, nil
+		return true, existingSecret, nil
 	}
 
-	return false, nil
+	return false, nil, nil
 }
 
 // Skip copy creation when
 // * secret and qsecret (copy type) doesn't exist
 // * (q)secret exists, but it's not marked as generated (label) and a copy (annotation)
-func (r *ReconcileQuarksSecret) skipCopy(ctx context.Context, qsec *qsv1a1.QuarksSecret, sourceQsec *qsv1a1.QuarksSecret) (bool, bool, error) {
+func (r *ReconcileQuarksSecret) skipCopy(ctx context.Context, qsec *qsv1a1.QuarksSecret, sourceQsec *qsv1a1.QuarksSecret, userCreatedSecret bool) (bool, bool, *unstructured.Unstructured, error) {
 	copyOf := sourceQsec.GetNamespacedName()
 	if qsec.Status.Generated != nil && *qsec.Status.Generated {
 		ctxlog.Debugf(ctx, "Existing secret %s/%s has already been generated",
 			qsec.Namespace,
 			qsec.Spec.SecretName,
 		)
-		return true, false, nil
+		return true, false, nil, nil
 	}
 
 	secretName := qsec.Spec.SecretName
@@ -532,14 +532,17 @@ func (r *ReconcileQuarksSecret) skipCopy(ctx context.Context, qsec *qsv1a1.Quark
 		Version: "v1",
 	})
 
+	ctxlog.Infof(ctx, "Qsec name and namespace", qsec.Name, qsec.GetNamespace())
+	ctxlog.Infof(ctx, "Sec name and namespace", secretName, qsec.GetNamespace())
+
 	// We want to create the secret if a qsec is present, or update a secret if the secret is already there (with the correct annotation)
 	existingQSec := &qsv1a1.QuarksSecret{}
-	err := r.client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: qsec.GetNamespace()}, existingQSec)
+	err := r.client.Get(ctx, types.NamespacedName{Name: qsec.Name, Namespace: qsec.GetNamespace()}, existingQSec)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			notFoundQsec = true
 		} else {
-			return false, false, errors.Wrapf(err, "could not get qsecret")
+			return false, false, nil, errors.Wrapf(err, "could not get qsecret")
 		}
 	}
 
@@ -548,14 +551,22 @@ func (r *ReconcileQuarksSecret) skipCopy(ctx context.Context, qsec *qsv1a1.Quark
 		if apierrors.IsNotFound(err) {
 			notFoundSec = true
 		} else {
-			return false, false, errors.Wrapf(err, "could not get secret")
+			return false, false, nil, errors.Wrapf(err, "could not get secret")
 		}
 	}
 
 	// If both are absent, we will skip the copy
 	if notFoundSec && notFoundQsec {
 		ctxlog.WithEvent(sourceQsec, "SkipCreation").Infof(ctx, "No Valid QSecret or Secret found")
-		return true, false, nil
+		return true, false, nil, nil
+	}
+
+	needsCreation := true
+	// If both of them are false, give preference to qsec
+	if !notFoundSec && !notFoundQsec {
+		ctxlog.WithEvent(sourceQsec, "SkipCreation").Infof(ctx, "Both QSecret & Secret found. Giving preference to QSecret")
+		notFoundSec = true
+		needsCreation = false
 	}
 
 	if notFoundSec {
@@ -574,10 +585,10 @@ func (r *ReconcileQuarksSecret) skipCopy(ctx context.Context, qsec *qsv1a1.Quark
 
 		if existingQSec.Spec.Type != qsv1a1.SecretCopy {
 			ctxlog.WithEvent(sourceQsec, "SkipCreation").Infof(ctx, "Invalid type for QSecret. It must be 'copy' type.")
-			return true, false, nil
+			return true, false, nil, nil
 		}
 
-		return !validateCopySecret(ctx, sourceQsec, secretLabels, secretAnnotations, copyOf), true, nil
+		return !validateCopySecret(ctx, sourceQsec, secretLabels, secretAnnotations, copyOf, userCreatedSecret), needsCreation, nil, nil
 	} else if notFoundQsec {
 		// Validate Secret
 		secretLabels := existingSecret.GetLabels()
@@ -590,22 +601,19 @@ func (r *ReconcileQuarksSecret) skipCopy(ctx context.Context, qsec *qsv1a1.Quark
 			secretAnnotations = map[string]string{}
 		}
 
-		return !validateCopySecret(ctx, sourceQsec, secretLabels, secretAnnotations, copyOf), false, nil
+		return !validateCopySecret(ctx, sourceQsec, secretLabels, secretAnnotations, copyOf, userCreatedSecret), false, existingSecret, nil
 	}
 
-	return true, false, nil
+	return true, false, nil, nil
 }
 
-func validateCopySecret(ctx context.Context, qsec *qsv1a1.QuarksSecret, secretLabels, secretAnnotations map[string]string, copyOf string) bool {
-
+func validateCopySecret(ctx context.Context, qsec *qsv1a1.QuarksSecret, secretLabels, secretAnnotations map[string]string, copyOf string, userCreatedSecret bool) bool {
 	valid := true
-
 	// check if the secret is marked as generated
-	if secretLabels[qsv1a1.LabelKind] != qsv1a1.GeneratedSecretKind {
+	if secretLabels[qsv1a1.LabelKind] != qsv1a1.GeneratedSecretKind && !userCreatedSecret {
 		ctxlog.WithEvent(qsec, "SkipCopyCreation").Infof(ctx, "Secret doesn't have generated label")
 		valid = false
 	}
-
 	// skip if this is a copy, and we're missing a copy-of label
 	if secretAnnotations[qsv1a1.AnnotationCopyOf] != copyOf {
 		ctxlog.WithEvent(qsec, "SkipCopyCreation").Infof(ctx, "Secret doesn't have the corresponding annotation %s vs %s", secretAnnotations[qsv1a1.AnnotationCopyOf], copyOf)
@@ -619,48 +627,81 @@ func (r *ReconcileQuarksSecret) createSecrets(ctx context.Context, qsec *qsv1a1.
 	// Create the main secret
 	// Check if allowed to generate secret, could be already done or
 	// created manually by a user
-	skipCreation, err := r.skipCreation(ctx, qsec)
+
+	userCreatedSecret := false
+	skipCreation, existingSecret, err := r.skipCreation(ctx, qsec)
 	if err != nil {
 		ctxlog.Errorf(ctx, "Error reading the secret: %v", err.Error())
 	}
+
 	if skipCreation {
 		ctxlog.WithEvent(qsec, "SkipCreation").Infof(ctx, "Skip creation: Secret '%s/%s' already exists and it's not generated", qsec.Namespace, qsec.Spec.SecretName)
+		secret = existingSecret
+
+		// Add user created annotation
+		if secret != nil {
+			if secret.Annotations == nil {
+				secret.Annotations = map[string]string{}
+			}
+			secret.Annotations[qsv1a1.AnnotationUserCreatedSecret] = "true"
+			userCreatedSecret = true
+		}
 	} else {
 		if err := r.createSecret(ctx, qsec, secret); err != nil {
 			return err
 		}
 	}
 
-	// See if we have to make any copies
 	for _, copy := range qsec.Spec.Copies {
 		copiedQSec := qsec.DeepCopy()
-		copiedSecret := &corev1.Secret{}
-
 		copiedQSec.Spec.SecretName = copy.Name
 		copiedQSec.Namespace = copy.Namespace
+		copiedSecret := &corev1.Secret{}
+
+		// We look and see if the secret is of the generated type
+		// And also check if we're allowed to create the resource in the target namespace
+		// We require an existing secret or qsecret with a label already be present in the target namespace
+		skip, needsCreation, existingSecretCopyNamespace, err := r.skipCopy(ctx, copiedQSec, qsec, userCreatedSecret)
+		if err != nil {
+			ctxlog.Errorf(ctx, "Error reading the secret: %v", err.Error())
+		}
+
+		if existingSecretCopyNamespace != nil {
+			if secret.Annotations == nil {
+				secret.Annotations = map[string]string{}
+			}
+			if secret.Labels == nil {
+				secret.Labels = map[string]string{}
+			}
+
+			for k, v := range existingSecretCopyNamespace.GetAnnotations() {
+				secret.Annotations[k] = v
+			}
+
+			for k, v := range existingSecretCopyNamespace.GetLabels() {
+				secret.Labels[k] = v
+			}
+		}
+
 		copiedSecret.Name = copy.Name
 		copiedSecret.Namespace = copy.Namespace
 		copiedSecret.Data = secret.Data
 		copiedSecret.Annotations = secret.Annotations
 		copiedSecret.Labels = secret.Labels
 
-		// We look and see if the secret is of the generated type
-		// And also check if we're allowed to create the resource in the target namespace
-		// We require an existing secret or qsecret with a label already be present in the target namespace
-		skip, needsCreation, err := r.skipCopy(ctx, copiedQSec, qsec)
-		if err != nil {
-			ctxlog.Errorf(ctx, "Error reading the secret: %v", err.Error())
-		}
 		if skip {
 			ctxlog.WithEvent(qsec, "SkipCreation").Infof(ctx, "Skip copy creation: Secret/QSecret '%s' must exist and have the appropriate labels and annotations to receive a copy", copy.String())
 		} else if needsCreation {
-			if err := r.createCopySecret(ctx, copiedQSec, copiedSecret, qsec.GetNamespacedName()); err != nil {
+			if err := r.createCopySecret(ctx, copiedQSec, copiedSecret, qsec.GetNamespacedName(), userCreatedSecret); err != nil {
 				return err
 			}
+			ctxlog.WithEvent(qsec, "SkipCreation").Infof(ctx, "Copy secret '%s' has been created in namespace '%s'", copy.Name, copy.Namespace)
 		} else {
+			ctxlog.Infof(ctx, "%v", copiedSecret.Data)
 			if err := r.updateCopySecret(ctx, qsec, copiedSecret); err != nil {
 				return err
 			}
+			ctxlog.WithEvent(qsec, "SkipCreation").Infof(ctx, "Copy secret '%s' has been updated in namespace '%s'", copy.Name, copy.Namespace)
 		}
 	}
 
@@ -668,7 +709,7 @@ func (r *ReconcileQuarksSecret) createSecrets(ctx context.Context, qsec *qsv1a1.
 }
 
 // createCopySecret applies common properties(labels and ownerReferences) to the secret and creates it
-func (r *ReconcileQuarksSecret) createCopySecret(ctx context.Context, qsec *qsv1a1.QuarksSecret, secret *corev1.Secret, copyOf string) error {
+func (r *ReconcileQuarksSecret) createCopySecret(ctx context.Context, qsec *qsv1a1.QuarksSecret, secret *corev1.Secret, copyOf string, userCreatedSecret bool) error {
 	ctxlog.Debugf(ctx, "Creating secret '%s/%s', owned by quarks secret '%s'", secret.Namespace, secret.Name, qsec.GetNamespacedName())
 
 	secretLabels := secret.GetLabels()
@@ -681,7 +722,9 @@ func (r *ReconcileQuarksSecret) createCopySecret(ctx context.Context, qsec *qsv1
 		secretAnnotations = map[string]string{}
 	}
 
-	secretLabels[qsv1a1.LabelKind] = qsv1a1.GeneratedSecretKind
+	if !userCreatedSecret {
+		secretLabels[qsv1a1.LabelKind] = qsv1a1.GeneratedSecretKind
+	}
 	secretAnnotations[qsv1a1.AnnotationCopyOf] = copyOf
 
 	secret.SetLabels(secretLabels)
@@ -744,6 +787,8 @@ func (r *ReconcileQuarksSecret) updateCopySecret(ctx context.Context, qsec *qsv1
 	})
 	uncachedSecret.SetName(secret.Name)
 	uncachedSecret.SetNamespace(secret.Namespace)
+	uncachedSecret.SetLabels(secret.Labels)
+	uncachedSecret.SetAnnotations(secret.Annotations)
 	uncachedSecret.Object["data"] = secret.Data
 	err := r.client.Update(ctx, uncachedSecret)
 
