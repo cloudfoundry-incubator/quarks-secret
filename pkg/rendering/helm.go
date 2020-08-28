@@ -8,6 +8,8 @@ import (
 	"helm.sh/helm/v3/pkg/engine"
 )
 
+const HelmEngine = "helm"
+
 type HelmRenderingEngine struct{}
 
 func NewHelmRenderingEngine() RenderingEngine {
@@ -20,6 +22,14 @@ func (h HelmRenderingEngine) Render(content string, values map[string]interface{
 	}, map[string]interface{}{}, values)
 
 	return out["templates"]
+}
+
+// RenderMap renders the values passed from a map[string]string
+func (h HelmRenderingEngine) RenderMap(contentMap map[string]string, values map[string]interface{}) map[string]string {
+	for k, v := range contentMap {
+		contentMap[k] = h.Render(v, values)
+	}
+	return contentMap
 }
 
 func (h HelmRenderingEngine) RenderFiles(files []*chart.File, values map[string]interface{}, defaults map[string]interface{}) map[string]string {

@@ -26,6 +26,7 @@ const (
 	BasicAuth        SecretType = "basic-auth"
 	DockerConfigJSON SecretType = "dockerconfigjson"
 	SecretCopy       SecretType = "copy"
+	TemplatedConfig  SecretType = "templatedconfig"
 )
 
 // SignerType defines the type of the certificate signer
@@ -128,12 +129,15 @@ func (c *Copy) String() string {
 
 // QuarksSecretSpec defines the desired state of QuarksSecret
 type QuarksSecretSpec struct {
-	Type              SecretType        `json:"type"`
-	Request           Request           `json:"request"`
-	SecretName        string            `json:"secretName"`
-	Copies            []Copy            `json:"copies,omitempty"`
-	SecretLabels      map[string]string `json:"secretLabels,omitempty"`
-	SecretAnnotations map[string]string `json:"secretAnnotations,omitempty"`
+	Type              SecretType             `json:"type"`
+	Request           Request                `json:"request"`
+	SecretName        string                 `json:"secretName"`
+	Copies            []Copy                 `json:"copies,omitempty"`
+	SecretLabels      map[string]string      `json:"secretLabels,omitempty"`
+	SecretAnnotations map[string]string      `json:"secretAnnotations,omitempty"`
+	TemplateType      string                 `json:"templateType,omitempty"`
+	Template          map[string]string      `json:"template,omitempty"`
+	TemplateValues    map[string]interface{} `json:"templateValues,omitempty"`
 }
 
 // QuarksSecretStatus defines the observed state of QuarksSecret
