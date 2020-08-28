@@ -25,6 +25,25 @@ func (c *Catalog) DefaultQuarksSecret(name string) qsv1a1.QuarksSecret {
 	}
 }
 
+// DefaultQuarksSecretWithCopy for use in tests
+func (c *Catalog) DefaultQuarksSecretWithCopy(name string, copynamespace string) qsv1a1.QuarksSecret {
+	return qsv1a1.QuarksSecret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: qsv1a1.QuarksSecretSpec{
+			Type:       "password",
+			SecretName: "generated-secret",
+			Copies: []qsv1a1.Copy{
+				{
+					Name:      "generated-secret-copy",
+					Namespace: copynamespace,
+				},
+			},
+		},
+	}
+}
+
 // CACertificateQuarksSecret for use in tests, creates a CA certificate
 func (c *Catalog) CACertificateQuarksSecret(name string, secretref string, cacertref string, keyref string) qsv1a1.QuarksSecret {
 	return qsv1a1.QuarksSecret{
