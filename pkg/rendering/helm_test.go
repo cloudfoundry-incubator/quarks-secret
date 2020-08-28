@@ -9,7 +9,7 @@ import (
 
 var _ = Describe("Rendering", func() {
 	var (
-		engine RenderingEngine
+		engine Engine
 	)
 	values := map[string]interface{}{"outer": "DEFAULT", "inner": "DEFAULT"}
 	defaults := map[string]interface{}{
@@ -21,11 +21,11 @@ var _ = Describe("Rendering", func() {
 			},
 		},
 	}
-
+	BeforeEach(func() {
+		engine = NewHelmRenderingEngine()
+	})
 	Describe("Using helm engine", func() {
-		BeforeEach(func() {
-			engine = NewHelmRenderingEngine()
-		})
+
 		It("render templates correctly", func() {
 
 			helm := engine.(HelmRenderingEngine)
@@ -48,10 +48,7 @@ var _ = Describe("Rendering", func() {
 
 	})
 
-	Describe("Using helm engine", func() {
-		BeforeEach(func() {
-			engine = NewHelmRenderingEngine()
-		})
+	Describe("Render", func() {
 		It("render templates correctly", func() {
 			out := engine.Render("{{.Values.outer | title }} {{.Values.inner | title}}", defaults)
 			Expect(out).To(Equal("Spouter Inn"))
@@ -69,4 +66,14 @@ var _ = Describe("Rendering", func() {
 			Expect(out).To(Equal(`{"global":{"callme":"Ishmael"},"inner":"inn","outer":"spouter"}`))
 		})
 	})
+
+	Describe("RenderMap", func() {
+		It("render templates correctly", func() {
+			out := engine.RenderMap(map[string]string{
+				"test2": "{{.Values.global.callme | lower }}"}, defaults)
+			Expect(out).To(Equal(map[string]string{"test2": "ishmael"}))
+		})
+
+	})
+
 })
