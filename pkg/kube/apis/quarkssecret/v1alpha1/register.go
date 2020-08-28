@@ -72,6 +72,20 @@ var (
 							Type:                   "object",
 							XPreserveUnknownFields: pointers.Bool(true),
 						},
+						"template": {
+							Type:                   "object",
+							XPreserveUnknownFields: pointers.Bool(true),
+							Description:            "Secret template used to render the Kubernetes secret",
+						},
+						"templateValues": {
+							Type:                   "object",
+							XPreserveUnknownFields: pointers.Bool(true),
+							Description:            "Template values to interpolate in the generated secret",
+						},
+						"templateType": {
+							Type:        "string",
+							Description: "Type of template being used (helm)",
+						},
 					},
 					Required: []string{
 						"secretName",
