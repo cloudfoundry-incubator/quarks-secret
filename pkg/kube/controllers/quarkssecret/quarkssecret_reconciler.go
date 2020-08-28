@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -24,6 +25,7 @@ import (
 	"code.cloudfoundry.org/quarks-secret/pkg/credsgen"
 	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
 	"code.cloudfoundry.org/quarks-secret/pkg/kube/util/mutate"
+	"code.cloudfoundry.org/quarks-secret/pkg/rendering"
 	"code.cloudfoundry.org/quarks-utils/pkg/config"
 	"code.cloudfoundry.org/quarks-utils/pkg/ctxlog"
 	"code.cloudfoundry.org/quarks-utils/pkg/meltdown"
@@ -165,6 +167,15 @@ func (r *ReconcileQuarksSecret) Reconcile(request reconcile.Request) (reconcile.
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "generating basic-auth secret")
 		}
+	case qsv1a1.TemplatedConfig:
+		if err := r.createTemplatedSecret(ctx, qsec); err != nil {
+			if isSecNotReady(err) {
+				ctxlog.Info(ctx, fmt.Sprintf("Secrets '%s' is not ready yet: %s", request.NamespacedName, err))
+				return reconcile.Result{RequeueAfter: time.Second * 5}, nil
+			}
+			ctxlog.Info(ctx, "Error generating templatedConfig secret: "+err.Error())
+			return reconcile.Result{}, errors.Wrap(err, "generating templatedConfig secret.")
+		}
 	case qsv1a1.SecretCopy:
 		// noop
 		return reconcile.Result{}, nil
@@ -234,6 +245,70 @@ func (r *ReconcileQuarksSecret) createRSASecret(ctx context.Context, qsec *qsv1a
 			"private_key": string(key.PrivateKey),
 			"public_key":  string(key.PublicKey),
 		},
+	}
+
+	return r.createSecrets(ctx, qsec, secret)
+}
+
+// renderSecret uses the specified templating engine to draw the secret data
+func (r *ReconcileQuarksSecret) renderSecret(ctx context.Context, qsec *qsv1a1.QuarksSecret) (map[string]string, error) {
+	res := map[string]string{}
+	if qsec.Spec.TemplateType == "" {
+		return res, errors.New("templatedConfig needs a templateType to be specified. E.g. helm")
+	}
+
+	// Interpolate the given values, and retrieve the secret contents to fill our config with
+	for k, v := range qsec.Spec.TemplateValues {
+		fields := strings.Split(v.(string), ".")
+		if len(fields) != 2 {
+			return res, errors.New("failed while reading templatedConfig values. Values must be in the `secretname.field` format. Got: " + v.(string))
+		}
+		secretName := fields[0]
+		field := fields[1]
+
+		existingSecret := &corev1.Secret{}
+		namespacedName := types.NamespacedName{
+			Namespace: qsec.Namespace,
+			Name:      secretName,
+		}
+		err := r.client.Get(ctx, namespacedName, existingSecret)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return res, newSecNotReadyError("secret not found")
+			}
+			return res, errors.Wrap(err, "getting secret")
+		}
+		data, ok := existingSecret.Data[field]
+		if !ok {
+			return res, errors.Errorf("Failed to get secret data key: %s", field)
+		}
+		qsec.Spec.TemplateValues[k] = string(data)
+	}
+
+	// Call the specified rendering engine to draw our data
+	switch qsec.Spec.TemplateType {
+	case rendering.HelmEngine:
+		helm := rendering.NewHelmRenderingEngine()
+		return helm.RenderMap(qsec.Spec.Template, map[string]interface{}{"Values": qsec.Spec.TemplateValues}), nil
+	default:
+		return map[string]string{}, errors.New("unsupported template type has been specified")
+	}
+}
+
+func (r *ReconcileQuarksSecret) createTemplatedSecret(ctx context.Context, qsec *qsv1a1.QuarksSecret) error {
+	secretData, err := r.renderSecret(ctx, qsec)
+	if err != nil {
+		return err
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        qsec.Spec.SecretName,
+			Namespace:   qsec.GetNamespace(),
+			Labels:      qsec.Spec.SecretLabels,
+			Annotations: qsec.Spec.SecretAnnotations,
+		},
+		StringData: secretData,
 	}
 
 	return r.createSecrets(ctx, qsec, secret)
