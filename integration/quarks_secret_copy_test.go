@@ -464,14 +464,6 @@ var _ = Describe("QuarksCopies", func() {
 			tearDowns = append(tearDowns, tearDown)
 
 			By("Checking the quarkssecret status")
-			Eventually(func() bool {
-				qsec, err := env.GetQuarksSecret(env.Namespace, qsecName)
-				Expect(err).NotTo(HaveOccurred())
-				if qsec.Status.Generated != nil {
-					return *qsec.Status.Generated
-				}
-				return true
-			}, 10*time.Second).Should(Equal(false))
 			checkStatus()
 
 			By("Checking the copied secret data")
