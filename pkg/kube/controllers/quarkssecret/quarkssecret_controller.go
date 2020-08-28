@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	crc "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -15,12 +16,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	credsgen "code.cloudfoundry.org/quarks-secret/pkg/credsgen/in_memory_generator"
 	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
+	"code.cloudfoundry.org/quarks-secret/pkg/kube/util/reference"
 	"code.cloudfoundry.org/quarks-utils/pkg/config"
 	"code.cloudfoundry.org/quarks-utils/pkg/ctxlog"
+	"code.cloudfoundry.org/quarks-utils/pkg/pointers"
+	"code.cloudfoundry.org/quarks-utils/pkg/skip"
 )
 
 // AddQuarksSecret creates a new QuarksSecrets controller to watch for the
@@ -96,6 +101,64 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 		return errors.Wrapf(err, "Watching quarks secrets failed in quarksSecret controller.")
 	}
 
+	// Watch for changes to user created secrets
+	p = predicate.Funcs{
+		CreateFunc:  func(e event.CreateEvent) bool { return false },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
+		GenericFunc: func(e event.GenericEvent) bool { return false },
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			n := e.ObjectNew.(*corev1.Secret)
+			o := e.ObjectOld.(*corev1.Secret)
+
+			shouldProcessReconcile := isUserCreatedSecret(n)
+			if reflect.DeepEqual(n.Data, o.Data) && reflect.DeepEqual(n.Labels, o.Labels) &&
+				reflect.DeepEqual(n.Annotations, o.Annotations) {
+				return false
+			}
+
+			return shouldProcessReconcile
+		},
+	}
+	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestsFromMapFunc{
+		ToRequests: handler.ToRequestsFunc(func(a handler.MapObject) []reconcile.Request {
+			secret := a.Object.(*corev1.Secret)
+
+			if skip.Reconciles(ctx, mgr.GetClient(), secret) {
+				return []reconcile.Request{}
+			}
+
+			reconciles, err := reference.GetReconciles(ctx, mgr.GetClient(), reference.ReconcileForQuarksSecret, secret, false)
+			if err != nil {
+				ctxlog.Errorf(ctx, "Failed to calculate reconciles for secret '%s/%s': %v", secret.Namespace, secret.Name, err)
+			}
+
+			for _, reconciliation := range reconciles {
+				ctxlog.NewMappingEvent(a.Object).Debug(ctx, reconciliation, "QuarksSecret", a.Meta.GetName(), qsv1a1.KubeSecretReference)
+
+				qsec := qsv1a1.QuarksSecret{}
+				err := mgr.GetClient().Get(ctx, types.NamespacedName{Name: reconciliation.Name, Namespace: reconciliation.Namespace}, &qsec)
+				if err != nil {
+					ctxlog.Errorf(ctx, "could not get QuarksSecret '%s': %v", qsec.GetNamespacedName(), err)
+				}
+
+				if qsec.Status.Generated == nil {
+					qsec.Status = qsv1a1.QuarksSecretStatus{}
+				}
+				qsec.Status.Generated = pointers.Bool(false)
+				qsec.Status.LastReconcile = nil
+				err = mgr.GetClient().Status().Update(ctx, &qsec)
+				if err != nil {
+					ctxlog.Errorf(ctx, "could not update QuarksSecret status '%s': %v", qsec.GetNamespacedName(), err)
+				}
+			}
+
+			return reconciles
+		}),
+	}, nsPred, p)
+	if err != nil {
+		return errors.Wrapf(err, "Watching secrets failed in quarks secret controller.")
+	}
+
 	return nil
 }
 
@@ -128,4 +191,10 @@ func listSecrets(ctx context.Context, client crc.Client, qsec *qsv1a1.QuarksSecr
 	}
 
 	return result, nil
+}
+
+func isUserCreatedSecret(secret *corev1.Secret) bool {
+	secretLabels := secret.GetLabels()
+	_, ok := secretLabels[qsv1a1.LabelKind]
+	return !ok
 }

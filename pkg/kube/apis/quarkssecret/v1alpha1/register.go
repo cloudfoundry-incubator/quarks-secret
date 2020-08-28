@@ -107,7 +107,8 @@ var (
 							Type: "boolean",
 						},
 						"lastReconcile": {
-							Type: "string",
+							Type:     "string",
+							Nullable: true,
 						},
 					},
 				},
