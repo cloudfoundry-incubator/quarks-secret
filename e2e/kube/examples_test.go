@@ -186,7 +186,7 @@ var _ = Describe("Examples Directory", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		It("are created if everything is setup correctly", func() {
+		FIt("are created if everything is setup correctly", func() {
 			By("Checking the generated secrets")
 			err := kubectl.WaitForSecret(namespace, "gen-secret")
 			Expect(err).ToNot(HaveOccurred(), "error waiting for secret")
