@@ -45,13 +45,13 @@ jobs:
         path: ./code-coverage
 
   cluster-tests:
-    needs: [unit-tests]
+    #needs: [unit-tests]
 
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        kubernetes_version: [v1.16.4,v1.18.0]
+        kubernetes_version: [v1.16.4]
 
     steps:
     - name: Set up Go

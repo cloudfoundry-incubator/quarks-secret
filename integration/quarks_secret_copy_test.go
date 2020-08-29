@@ -14,7 +14,7 @@ import (
 	"code.cloudfoundry.org/quarks-utils/testing/machine"
 )
 
-var _ = Describe("QuarksCopies", func() {
+var _ = FDescribe("QuarksCopies", func() {
 	var (
 		qsec          qsv1a1.QuarksSecret
 		tearDowns     []machine.TearDownFunc
