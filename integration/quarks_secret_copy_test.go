@@ -14,7 +14,7 @@ import (
 	"code.cloudfoundry.org/quarks-utils/testing/machine"
 )
 
-var _ = Describe("QuarksCopies", func() {
+var _ = FDescribe("QuarksCopies", func() {
 	var (
 		qsec          qsv1a1.QuarksSecret
 		tearDowns     []machine.TearDownFunc
@@ -454,6 +454,7 @@ var _ = Describe("QuarksCopies", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(secret.Labels).To(BeZero())
 			Expect(string(secret.Data["password"])).To(Equal("securepassword"))
+			time.Sleep(100 * time.Second)
 		})
 
 		It("should update the copies in other namespaces if copy quarks secret if found", func() {
