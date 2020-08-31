@@ -109,11 +109,20 @@ type ImageCredentialsRequest struct {
 	Email    string          `json:"email"`
 }
 
+// TemplatedConfigRequest defines the type of the template engine, a map of templates, one
+// per key and the variables for the templates.
+type TemplatedConfigRequest struct {
+	Type      string                     `json:"type,omitempty"`
+	Templates map[string]string          `json:"templates,omitempty"`
+	Values    map[string]SecretReference `json:"values,omitempty"`
+}
+
 // Request specifies details for the secret generation
 type Request struct {
 	BasicAuthRequest        BasicAuthRequest        `json:"basic-auth"`
 	CertificateRequest      CertificateRequest      `json:"certificate"`
 	ImageCredentialsRequest ImageCredentialsRequest `json:"imageCredentials"`
+	TemplatedConfigRequest  TemplatedConfigRequest  `json:"templatedConfig,omitempty"`
 }
 
 // Copy defines the destination of a copied generated secret
@@ -129,15 +138,12 @@ func (c *Copy) String() string {
 
 // QuarksSecretSpec defines the desired state of QuarksSecret
 type QuarksSecretSpec struct {
-	Type              SecretType             `json:"type"`
-	Request           Request                `json:"request"`
-	SecretName        string                 `json:"secretName"`
-	Copies            []Copy                 `json:"copies,omitempty"`
-	SecretLabels      map[string]string      `json:"secretLabels,omitempty"`
-	SecretAnnotations map[string]string      `json:"secretAnnotations,omitempty"`
-	TemplateType      string                 `json:"templateType,omitempty"`
-	Template          map[string]string      `json:"template,omitempty"`
-	TemplateValues    map[string]interface{} `json:"templateValues,omitempty"`
+	Type              SecretType        `json:"type"`
+	Request           Request           `json:"request"`
+	SecretName        string            `json:"secretName"`
+	Copies            []Copy            `json:"copies,omitempty"`
+	SecretLabels      map[string]string `json:"secretLabels,omitempty"`
+	SecretAnnotations map[string]string `json:"secretAnnotations,omitempty"`
 }
 
 // QuarksSecretStatus defines the observed state of QuarksSecret
