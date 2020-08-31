@@ -13,15 +13,20 @@ metadata:
 spec:
   # Define the QuarksSecret type
   type: templatedconfig
-  # Define the templating type, in this case "helm" (it's also the only type support as for now)
-  templateType: helm
-  # The new secret name which will have the user-defined structure
+  # The new secret name which will have the templated config
   secretName: templated-secret
-  # Templating with helm engine.
-  # Supplied values are available under .Values as usual
-  template: 
-    foo: "{{.Values.Bar}}"
-  # The values for our template in a key, value format.
-  templateValues:
-    # The syntax format is <secretname>.<data_field>
-    Bar: "gen-secret-for-template.password"
+  request:
+    templatedConfig:
+      # Define the templating type, in this case "helm" (it's also the only type support as for now)
+      # Here, supplied values are available under .Values as usual
+      type: helm
+      templates:
+        # The result will be stored in a secret: secret.Data["foo"] = <value from referenced secret>
+        foo: "{{.Values.Bar}}"
+      # The values for our template in a key, value format.
+      values:
+        # The name of the variable
+        Bar:
+          # A reference to the secret
+          name: "gen-secret-for-template"
+          key: "password"

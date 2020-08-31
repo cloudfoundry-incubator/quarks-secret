@@ -2,7 +2,6 @@ package quarkssecret
 
 import (
 	"context"
-	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -14,26 +13,25 @@ import (
 	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
 )
 
-// renderSecret uses the specified templating engine to draw the secret data
-func (r *ReconcileQuarksSecret) renderSecret(ctx context.Context, qsec *qsv1a1.QuarksSecret) (map[string]string, error) {
+// TemplateEngine renders TemplatedConfigs, which are stored in secret.data
+type TemplateEngine interface {
+	// ExecuteMap renders the templates in templates with variables from values
+	ExecuteMap(templates map[string]string, values map[string]interface{}) map[string]string
+}
+
+// renderSecret uses the specified templating engine to render the templates in Spec.Templates with the data from the referenced secrets.
+func (r *ReconcileQuarksSecret) renderSecret(ctx context.Context, namespace string, request qsv1a1.TemplatedConfigRequest) (map[string]string, error) {
 	empty := map[string]string{}
-	if qsec.Spec.TemplateType == "" {
-		return empty, errors.New("templatedConfig needs a templateType to be specified. E.g. helm")
-	}
 
 	// Interpolate the given values, and retrieve the secret contents to fill our config with
 	values := map[string]interface{}{}
-	for k, v := range qsec.Spec.TemplateValues {
-		fields := strings.Split(v.(string), ".")
-		if len(fields) != 2 {
-			return empty, errors.New("failed while reading templatedConfig values. Values must be in the `secretname.field` format. Got: " + v.(string))
-		}
-		secretName := fields[0]
-		field := fields[1]
+	for name, ref := range request.Values {
+		secretName := ref.Name
+		field := ref.Key
 
 		existingSecret := &corev1.Secret{}
 		namespacedName := types.NamespacedName{
-			Namespace: qsec.Namespace,
+			Namespace: namespace,
 			Name:      secretName,
 		}
 		err := r.client.Get(ctx, namespacedName, existingSecret)
@@ -47,21 +45,22 @@ func (r *ReconcileQuarksSecret) renderSecret(ctx context.Context, qsec *qsv1a1.Q
 		if !ok {
 			return empty, errors.Errorf("Failed to get secret data key: %s", field)
 		}
-		values[k] = string(data)
+		values[name] = string(data)
 	}
 
 	// Call the specified rendering engine to draw our data
-	switch qsec.Spec.TemplateType {
+	var engine TemplateEngine
+	switch request.Type {
 	case HelmTemplate:
-		t := template.New()
-		return t.ExecuteMap(qsec.Spec.Template, values), nil
+		engine = template.New()
 	default:
-		return map[string]string{}, errors.New("unsupported template type has been specified")
+		return empty, errors.New("unsupported template type has been specified")
 	}
+	return engine.ExecuteMap(request.Templates, values), nil
 }
 
-func (r *ReconcileQuarksSecret) createTemplatedSecret(ctx context.Context, qsec *qsv1a1.QuarksSecret) error {
-	secretData, err := r.renderSecret(ctx, qsec)
+func (r *ReconcileQuarksSecret) createTemplatedConfigSecret(ctx context.Context, qsec *qsv1a1.QuarksSecret) error {
+	secretData, err := r.renderSecret(ctx, qsec.Namespace, qsec.Spec.Request.TemplatedConfigRequest)
 	if err != nil {
 		return err
 	}

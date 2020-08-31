@@ -161,7 +161,7 @@ func (r *ReconcileQuarksSecret) Reconcile(request reconcile.Request) (reconcile.
 			return reconcile.Result{}, errors.Wrap(err, "generating basic-auth secret")
 		}
 	case qsv1a1.TemplatedConfig:
-		if err := r.createTemplatedSecret(ctx, qsec); err != nil {
+		if err := r.createTemplatedConfigSecret(ctx, qsec); err != nil {
 			if isSecNotReady(err) {
 				ctxlog.Info(ctx, fmt.Sprintf("Secrets '%s' is not ready yet: %s", request.NamespacedName, err))
 				return reconcile.Result{RequeueAfter: time.Second * 5}, nil
