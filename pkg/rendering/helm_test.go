@@ -1,17 +1,16 @@
 package rendering_test
 
 import (
-	. "code.cloudfoundry.org/quarks-secret/pkg/rendering"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"helm.sh/helm/v3/pkg/chart"
+
+	. "code.cloudfoundry.org/quarks-secret/pkg/rendering"
 )
 
-var _ = Describe("Rendering", func() {
+var _ = Describe("Template", func() {
 	var (
-		engine Engine
+		engine HelmRenderingEngine
 	)
-	values := map[string]interface{}{"outer": "DEFAULT", "inner": "DEFAULT"}
 	defaults := map[string]interface{}{
 		"Values": map[string]interface{}{
 			"outer": "spouter",
@@ -21,59 +20,42 @@ var _ = Describe("Rendering", func() {
 			},
 		},
 	}
+
 	BeforeEach(func() {
 		engine = NewHelmRenderingEngine()
 	})
-	Describe("Using helm engine", func() {
-
-		It("render templates correctly", func() {
-
-			helm := engine.(HelmRenderingEngine)
-			files := []*chart.File{
-				{Name: "templates/test1", Data: []byte("{{.Values.outer | title }} {{.Values.inner | title}}")},
-				{Name: "templates/test2", Data: []byte("{{.Values.global.callme | lower }}")},
-				{Name: "templates/test3", Data: []byte("{{.noValue}}")},
-				{Name: "templates/test4", Data: []byte("{{toJson .Values}}")},
-			}
-
-			out := helm.RenderFiles(files, values, defaults)
-
-			Expect(out).To(Equal(map[string]string{
-				"templates/test1": "Spouter Inn",
-				"templates/test2": "ishmael",
-				"templates/test3": "",
-				"templates/test4": `{"global":{"callme":"Ishmael"},"inner":"inn","outer":"spouter"}`,
-			}))
-		})
-
-	})
-
-	Describe("Render", func() {
-		It("render templates correctly", func() {
-			out := engine.Render("{{.Values.outer | title }} {{.Values.inner | title}}", defaults)
-			Expect(out).To(Equal("Spouter Inn"))
-		})
-		It("render templates correctly", func() {
-			out := engine.Render("{{.Values.global.callme | lower }}", defaults)
-			Expect(out).To(Equal("ishmael"))
-		})
-		It("render templates correctly", func() {
-			out := engine.Render("{{.noValue}}", defaults)
-			Expect(out).To(Equal(""))
-		})
-		It("render templates correctly", func() {
-			out := engine.Render("{{toJson .Values}}", defaults)
-			Expect(out).To(Equal(`{"global":{"callme":"Ishmael"},"inner":"inn","outer":"spouter"}`))
-		})
-	})
 
 	Describe("RenderMap", func() {
-		It("render templates correctly", func() {
+		It("renders helm template functions and values", func() {
 			out := engine.RenderMap(map[string]string{
-				"test2": "{{.Values.global.callme | lower }}"}, defaults)
-			Expect(out).To(Equal(map[string]string{"test2": "ishmael"}))
+				"test2": "{{.Values.global.callme | lower }}",
+			}, defaults)
+			Expect(out).To(HaveLen(1))
+			Expect(out).To(HaveKeyWithValue("test2", "ishmael"))
+
+			out = engine.RenderMap(map[string]string{
+				"test": "{{toJson .Values}}",
+			}, defaults)
+			Expect(out).To(HaveKeyWithValue("test", `{"global":{"callme":"Ishmael"},"inner":"inn","outer":"spouter"}`))
 		})
 
-	})
+		It("renders multiple templates", func() {
+			out := engine.RenderMap(map[string]string{
+				"test1": "{{.Values.outer | title }} {{.Values.inner | title}}",
+				"test3": "{{.noValue}}",
+				"test4": "{{toJson .Values}}",
+			}, defaults)
+			Expect(out).To(HaveLen(3))
+			Expect(out).To(HaveKeyWithValue("test1", "Spouter Inn"))
+			Expect(out).To(HaveKeyWithValue("test3", ""))
+			Expect(out).To(HaveKeyWithValue("test4", `{"global":{"callme":"Ishmael"},"inner":"inn","outer":"spouter"}`))
+		})
 
+		It("renders an empty string", func() {
+			out := engine.RenderMap(map[string]string{
+				"test": "{{.noValue}}",
+			}, defaults)
+			Expect(out).To(HaveKeyWithValue("test", ""))
+		})
+	})
 })
