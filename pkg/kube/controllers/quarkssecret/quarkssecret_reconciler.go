@@ -149,7 +149,7 @@ func (r *ReconcileQuarksSecret) Reconcile(request reconcile.Request) (reconcile.
 			ctxlog.Infof(ctx, "Error generating SSH key secret: %s", err.Error())
 			return reconcile.Result{}, errors.Wrap(err, "generating SSH key secret failed.")
 		}
-	case qsv1a1.Certificate:
+	case qsv1a1.Certificate, qsv1a1.TLS:
 		ctxlog.Info(ctx, "Generating certificate")
 		err = r.createCertificateSecret(ctx, qsec)
 		if err != nil {
@@ -301,6 +301,10 @@ func (r *ReconcileQuarksSecret) createCertificateSecret(ctx context.Context, qse
 
 	switch qsec.Spec.Request.CertificateRequest.SignerType {
 	case qsv1a1.ClusterSigner:
+		if qsec.Spec.Type == "tls" {
+			return errors.Errorf("can't generate tls Type with cluster SignerType")
+		}
+
 		if qsec.Spec.Request.CertificateRequest.ActivateEKSWorkaroundForSAN {
 			if serviceIPForEKSWorkaround == "" {
 				return errors.Errorf("can't activate EKS workaround for QuarksSecret '%s'; couldn't find a ClusterIP for any service reference", qsec.GetNamespacedName())
@@ -343,18 +347,35 @@ func (r *ReconcileQuarksSecret) createCertificateSecret(ctx context.Context, qse
 		if err != nil {
 			return err
 		}
-		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        qsec.Spec.SecretName,
-				Namespace:   qsec.GetNamespace(),
-				Labels:      qsec.Spec.SecretLabels,
-				Annotations: qsec.Spec.SecretAnnotations,
-			},
-			StringData: map[string]string{
-				"certificate": string(cert.Certificate),
-				"private_key": string(cert.PrivateKey),
-				"is_ca":       strconv.FormatBool(qsec.Spec.Request.CertificateRequest.IsCA),
-			},
+
+		objectMeta := metav1.ObjectMeta{
+			Name:        qsec.Spec.SecretName,
+			Namespace:   qsec.GetNamespace(),
+			Labels:      qsec.Spec.SecretLabels,
+			Annotations: qsec.Spec.SecretAnnotations,
+		}
+
+		var secret *corev1.Secret
+		// "tls" QuarksSecret type
+		if qsec.Spec.Type == "tls" {
+			secret = &corev1.Secret{
+				ObjectMeta: objectMeta,
+				StringData: map[string]string{
+					"tls.crt": string(cert.Certificate),
+					"tls.key": string(cert.PrivateKey),
+				},
+				Type: corev1.SecretTypeTLS,
+			}
+		} else {
+			// "certificate" QuarksSecret type
+			secret = &corev1.Secret{
+				ObjectMeta: objectMeta,
+				StringData: map[string]string{
+					"certificate": string(cert.Certificate),
+					"private_key": string(cert.PrivateKey),
+					"is_ca":       strconv.FormatBool(qsec.Spec.Request.CertificateRequest.IsCA),
+				},
+			}
 		}
 
 		if len(generationRequest.CA.Certificate) > 0 {

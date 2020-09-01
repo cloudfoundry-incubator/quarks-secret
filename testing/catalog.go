@@ -68,6 +68,27 @@ func (c *Catalog) CertificateQuarksSecret(name string, secretref string, cacertr
 	}
 }
 
+// TLSQuarksSecret for use in tests, creates a tls type secret
+func (c *Catalog) TLSQuarksSecret(name string, secretref string, cacertref string, keyref string) qsv1a1.QuarksSecret {
+	return qsv1a1.QuarksSecret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: qsv1a1.QuarksSecretSpec{
+			SecretName: "generated-cert-secret",
+			Type:       "tls",
+			Request: qsv1a1.Request{
+				CertificateRequest: qsv1a1.CertificateRequest{
+					CommonName:       "example.com",
+					CARef:            qsv1a1.SecretReference{Name: secretref, Key: cacertref},
+					CAKeyRef:         qsv1a1.SecretReference{Name: secretref, Key: keyref},
+					AlternativeNames: []string{"qux.com"},
+				},
+			},
+		},
+	}
+}
+
 // SSHQuarksSecret returns a 'ssh' type quarks secret for testing
 func (c *Catalog) SSHQuarksSecret(name string) qsv1a1.QuarksSecret {
 	return qsv1a1.QuarksSecret{

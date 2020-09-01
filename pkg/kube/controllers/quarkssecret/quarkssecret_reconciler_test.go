@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/dchest/uniuri"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"go.uber.org/zap"
@@ -401,6 +403,111 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 					Expect(err).ToNot(HaveOccurred())
 					Expect(reconcile.Result{}).To(Equal(result))
 				})
+			})
+		})
+	})
+
+	Context("when generating tls secret", func() {
+		BeforeEach(func() {
+			qSecret.Spec.Type = "tls"
+			qSecret.Spec.Request.CertificateRequest.CommonName = "foo.com"
+			qSecret.Spec.Request.CertificateRequest.AlternativeNames = []string{"bar.com", "baz.com"}
+		})
+
+		Context("when using a local signer", func() {
+			BeforeEach(func() {
+				qSecret.Spec.Request.CertificateRequest.SignerType = qsv1a1.LocalSigner
+				qSecret.Spec.Request.CertificateRequest.CARef = qsv1a1.SecretReference{Name: "root_ca", Key: "ca"}
+				qSecret.Spec.Request.CertificateRequest.CAKeyRef = qsv1a1.SecretReference{Name: "root_ca", Key: "key"}
+			})
+
+			Context("if the CA is not ready", func() {
+				It("requeues generation", func() {
+					result, err := reconciler.Reconcile(request)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(client.CreateCallCount()).To(Equal(0))
+					Expect(result.RequeueAfter).To(Equal(time.Second * 5))
+				})
+			})
+
+			Context("if the CA is ready", func() {
+
+				var (
+					generatedCert       string
+					generatedPrivateKey string
+				)
+
+				BeforeEach(func() {
+					generatedCert = "the_cert-" + uniuri.NewLen(5)
+					generatedPrivateKey = "private_key-" + uniuri.NewLen(5)
+
+					ca := &corev1.Secret{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "root_ca",
+							Namespace: "default",
+						},
+						Data: map[string][]byte{
+							"ca":  []byte("the_ca"),
+							"key": []byte("ca_private_key"),
+						},
+					}
+
+					client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+						switch object := object.(type) {
+						case *qsv1a1.QuarksSecret:
+							if nn.Name == "foo" {
+								qSecret.DeepCopyInto(object)
+							}
+						case *corev1.Secret:
+							if nn.Name == "root_ca" {
+								ca.DeepCopyInto(object)
+							}
+							if nn.Name == "generated-secret" {
+								return errors.NewNotFound(schema.GroupResource{}, "not found")
+							}
+						}
+						return nil
+					})
+				})
+
+				It("triggers generation of a secret", func() {
+					generator.GenerateCertificateCalls(func(name string, request credsgen.CertificateGenerationRequest) (credsgen.Certificate, error) {
+						Expect(request.CA.Certificate).To(Equal([]byte("the_ca")))
+						Expect(request.CA.PrivateKey).To(Equal([]byte("ca_private_key")))
+						Expect(request.IsCA).To(BeFalse())
+						Expect(request.CommonName).To(Equal("foo.com"))
+						Expect(request.AlternativeNames).To(Equal([]string{"bar.com", "baz.com"}))
+
+						return credsgen.Certificate{Certificate: []byte(generatedCert), PrivateKey: []byte(generatedPrivateKey), IsCA: false}, nil
+					})
+					client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+						secret := object.(*corev1.Secret)
+						Expect(secret.StringData["tls.crt"]).To(Equal(generatedCert))
+						Expect(secret.StringData["tls.key"]).To(Equal(generatedPrivateKey))
+						Expect(secret.GetLabels()).To(HaveKeyWithValue(qsv1a1.LabelKind, qsv1a1.GeneratedSecretKind))
+						Expect(secret.GetLabels()).To(HaveKeyWithValue("Label", "generated-label"))
+						Expect(secret.Type).To(Equal(corev1.SecretTypeTLS))
+						return nil
+					})
+
+					result, err := reconciler.Reconcile(request)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(client.CreateCallCount()).To(Equal(1))
+					Expect(result).To(Equal(reconcile.Result{}))
+				})
+			})
+		})
+
+		Context("when using a cluster signer", func() {
+			BeforeEach(func() {
+				qSecret.Spec.Request.CertificateRequest.SignerType = qsv1a1.ClusterSigner
+			})
+
+			It("returns an error", func() {
+				_, err := reconciler.Reconcile(request)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("can't generate tls Type with cluster SignerType"))
+				Expect(client.CreateCallCount()).To(Equal(0))
 			})
 		})
 	})

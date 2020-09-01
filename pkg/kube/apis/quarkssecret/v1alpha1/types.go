@@ -21,6 +21,7 @@ type SecretType = string
 const (
 	Password         SecretType = "password"
 	Certificate      SecretType = "certificate"
+	TLS              SecretType = "tls"
 	SSHKey           SecretType = "ssh"
 	RSAKey           SecretType = "rsa"
 	BasicAuth        SecretType = "basic-auth"

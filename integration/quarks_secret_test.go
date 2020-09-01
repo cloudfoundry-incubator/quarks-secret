@@ -3,6 +3,7 @@ package integration_test
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 
 	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
 	"code.cloudfoundry.org/quarks-utils/testing/machine"
@@ -106,6 +107,29 @@ var _ = Describe("QuarksSecret", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(secret.Data["certificate"]).To(ContainSubstring("BEGIN CERTIFICATE"))
 			Expect(secret.Data["private_key"]).To(ContainSubstring("RSA PRIVATE KEY"))
+
+			deleteQuarksSecret()
+		})
+	})
+
+	When("quarks secret type is tls", func() {
+		BeforeEach(func() {
+			qs = env.TLSQuarksSecret(qsName, "my-ca", "ca", "key")
+			secretName = qs.Spec.SecretName
+
+			By("creating the CA and storing it in a secret")
+			tearDown, err := env.CreateCASecret(env.Log, env.Namespace, "my-ca")
+			Expect(err).NotTo(HaveOccurred())
+			tearDowns = append(tearDowns, tearDown)
+		})
+
+		It("creates the tls type", func() {
+			By("checking for the generated secret")
+			secret, err := env.CollectSecret(env.Namespace, secretName)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(secret.Data["tls.crt"]).To(ContainSubstring("BEGIN CERTIFICATE"))
+			Expect(secret.Data["tls.key"]).To(ContainSubstring("RSA PRIVATE KEY"))
+			Expect(secret.Type).To(Equal(corev1.SecretTypeTLS))
 
 			deleteQuarksSecret()
 		})
