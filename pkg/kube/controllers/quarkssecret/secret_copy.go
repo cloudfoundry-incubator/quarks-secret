@@ -190,7 +190,7 @@ func (r *ReconcileQuarksSecret) createSecret(ctx context.Context, qsec *qsv1a1.Q
 }
 
 // updateCopySecret updates a copied destination Secret
-func (r *ReconcileQuarksSecret) updateCopySecret(ctx context.Context, qsec *qsv1a1.QuarksSecret, secret *corev1.Secret) error {
+func (r *ReconcileQuarksSecret) updateCopySecret(ctx context.Context, secret *corev1.Secret) error {
 	// If this is a copy (lives in a different namespace), we only do an update,
 	// since we're not allowed to create, and we don't set a reference, because
 	// cross namespace references are not supported

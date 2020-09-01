@@ -289,7 +289,7 @@ func (r *ReconcileQuarksSecret) createSecrets(ctx context.Context, qsec *qsv1a1.
 				return err
 			}
 		} else {
-			if err := r.updateCopySecret(ctx, qsec, copiedSecret); err != nil {
+			if err := r.updateCopySecret(ctx, copiedSecret); err != nil {
 				return err
 			}
 		}
