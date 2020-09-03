@@ -13,7 +13,7 @@ test-cluster: tools
 lint: tools
 	$(QUARKS_UTILS)/bin/lint
 
-build-image:
+build-image: tools
 	bin/build-image
 
 .PHONY: tools

@@ -17,19 +17,3 @@ spec:
       signerType: local
   secretName: example.secret.tls
   type: tls
-
----
-
-apiVersion: quarks.cloudfoundry.org/v1alpha1
-kind: QuarksSecret
-metadata:
-  name: example.quarks.tls
-spec:
-  request:
-    certificate:
-      alternativeNames: null
-      commonName: kubeTlsTypeCert
-      isCA: false
-      signerType: cluster
-  secretName: example.secret.tls
-  type: tls
