@@ -31,19 +31,19 @@ var _ = Describe("Examples Directory", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	Context("quarks-secret example", func() {
+	Context("rotation example", func() {
 		var (
 			passwordv1 []byte
 			passwordv2 []byte
 		)
 
-		Context("rotates the password secret", func() {
+		When("rotation config lists one quarks secret", func() {
 			BeforeEach(func() {
 				example = filepath.Join(examplesDir, "password.yaml")
 			})
 
 			It("should change the password data", func() {
-				By("Creating the password secret")
+				By("Wating for the password secret")
 				err := kubectl.WaitForSecret(namespace, "gen-secret1")
 				Expect(err).ToNot(HaveOccurred())
 				passwordv1, err = cmdHelper.GetData(namespace, "secret", "gen-secret1", "go-template={{.data.password}}")
@@ -60,6 +60,44 @@ var _ = Describe("Examples Directory", func() {
 				passwordv1, err = cmdHelper.GetData(namespace, "secret", "gen-secret1", "go-template={{.data.password}}")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(passwordv1).NotTo(Equal(passwordv2))
+			})
+		})
+	})
+
+	Context("user-provided example", func() {
+		var (
+			passwordv1 []byte
+			passwordv2 []byte
+		)
+
+		When("creating an owning qsec", func() {
+			BeforeEach(func() {
+				example = filepath.Join(examplesDir, "user-provided-secret.yaml")
+			})
+
+			It("does not modify the user-provided secret", func() {
+				By("Waiting for the password secret")
+				err := kubectl.WaitForSecret(namespace, "gen-secret1")
+				Expect(err).ToNot(HaveOccurred())
+				passwordv1, err = cmdHelper.GetData(namespace, "secret", "gen-secret1", "go-template={{.data.password}}")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(passwordv1).NotTo(BeNil())
+
+				By("Creating the owning QuarksSecrets")
+				err = cmdHelper.Create(namespace, filepath.Join(examplesDir, "password.yaml"))
+				Expect(err).ToNot(HaveOccurred())
+				Eventually(func() bool {
+					generated, err := cmdHelper.GetData(namespace, "secret", "gen-secret1", "go-template={{.status.generated}}")
+					if err != nil {
+						return false
+					}
+					return string(generated) == "true"
+				})
+
+				By("Checking the rotated password data")
+				passwordv2, err = cmdHelper.GetData(namespace, "secret", "gen-secret1", "go-template={{.data.password}}")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(passwordv1).To(Equal(passwordv2))
 			})
 		})
 	})

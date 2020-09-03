@@ -72,9 +72,10 @@ func (r *ReconcileSecretRotation) Reconcile(request reconcile.Request) (reconcil
 
 	for _, name := range names {
 		qsec := &qsv1a1.QuarksSecret{}
-		err := r.client.Get(ctx, types.NamespacedName{Name: name, Namespace: instance.Namespace}, qsec)
+		qsecname := types.NamespacedName{Name: name, Namespace: instance.Namespace}
+		err := r.client.Get(ctx, qsecname, qsec)
 		if err != nil {
-			ctxlog.Errorf(ctx, "Error getting QuarksSecret the object '%s', skipping secret rotation", qsec.GetNamespacedName())
+			ctxlog.Errorf(ctx, "Error getting QuarksSecret '%s', skipping secret rotation: %s", qsecname.String(), err)
 			continue
 		}
 
@@ -85,7 +86,7 @@ func (r *ReconcileSecretRotation) Reconcile(request reconcile.Request) (reconcil
 		}
 
 		qsec.Status.Generated = pointers.Bool(false)
-		ctxlog.Debugf(ctx, "QuarksSecret '%s' cannot be rotated, it was not yet generated", qsec.GetNamespacedName())
+		ctxlog.Debugf(ctx, "QuarksSecret '%s' status.generated will be reset to false to trigger regeneration", qsec.GetNamespacedName())
 
 		err = r.client.Status().Update(ctx, qsec)
 		if err != nil {
