@@ -1,0 +1,13 @@
+apiVersion: quarks.cloudfoundry.org/v1alpha1
+kind: QuarksSecret
+metadata:
+  name: example.quarks.ca
+spec:
+  request:
+    certificate:
+      alternativeNames: null
+      commonName: someExampleCA
+      isCA: true
+      signerType: local
+  secretName: example.secret.ca
+  type: certificate

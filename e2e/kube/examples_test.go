@@ -286,4 +286,38 @@ var _ = Describe("Examples Directory", func() {
 			Expect(err).ToNot(HaveOccurred(), "error getting for secret")
 		})
 	})
+
+	Context("tls type certificate example", func() {
+		BeforeEach(func() {
+			example = filepath.Join(examplesDir, "ca.yaml")
+		})
+
+		It("creates a signed certificate", func() {
+			certYamlFilePath := examplesDir + "tls.yaml"
+
+			By("Creating QuarksSecrets")
+			err := cmdHelper.Create(namespace, certYamlFilePath)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Checking the generated certificates")
+			err = kubectl.WaitForSecret(namespace, "example.secret.ca")
+			Expect(err).ToNot(HaveOccurred(), "error waiting for ca secret")
+			err = kubectl.WaitForSecret(namespace, "example.secret.tls")
+			Expect(err).ToNot(HaveOccurred(), "error waiting for cert secret")
+
+			By("Checking the generated certificates")
+			outSecret, err := cmdHelper.GetData(namespace, "secret", "example.secret.ca", "go-template={{.data.certificate}}")
+			Expect(err).ToNot(HaveOccurred())
+			rootPEM, _ := b64.StdEncoding.DecodeString(string(outSecret))
+
+			outSecret, err = cmdHelper.GetData(namespace, "secret", "example.secret.tls", "go-template={{ index .data \"tls.crt\" }}")
+			Expect(err).ToNot(HaveOccurred())
+			certPEM, _ := b64.StdEncoding.DecodeString(string(outSecret))
+
+			By("Verify the certificates")
+			dnsName := "kubeTlsTypeCert"
+			err = testing.CertificateVerify(rootPEM, certPEM, dnsName)
+			Expect(err).ToNot(HaveOccurred(), "error verifying certificates")
+		})
+	})
 })
