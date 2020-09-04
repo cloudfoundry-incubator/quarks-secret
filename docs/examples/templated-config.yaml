@@ -17,7 +17,7 @@ spec:
   secretName: templated-secret
   request:
     templatedConfig:
-      # Define the templating type, in this case "helm" (it's also the only type support as for now)
+      # Define the templating type, in this case "helm" (it's also the only supported type as for now)
       # Here, supplied values are available under .Values as usual
       type: helm
       templates:
