@@ -84,6 +84,9 @@ var (
 						"generated": {
 							Type: "boolean",
 						},
+						"copied": {
+							Type: "boolean",
+						},
 						"lastReconcile": {
 							Type:     "string",
 							Nullable: true,

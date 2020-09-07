@@ -60,9 +60,6 @@ var (
 	AnnotationCertSecretName = fmt.Sprintf("%s/cert-secret-name", apis.GroupName)
 	// AnnotationQSecName is the annotation key for the name of the owning quarks secret
 	AnnotationQSecName = fmt.Sprintf("%s/quarks-secret-name", apis.GroupName)
-	// AnnotationUserCreatedSecret is the annotation key for user created secret
-	// for quarks secret
-	AnnotationUserCreatedSecret = fmt.Sprintf("%s/user-created-secret", apis.GroupName)
 	// AnnotationQSecNamespace is the annotation key for quarks secret namespace
 	// since CSR are not namespaced
 	AnnotationQSecNamespace = fmt.Sprintf("%s/quarks-secret-namespace", apis.GroupName)
@@ -154,6 +151,8 @@ type QuarksSecretStatus struct {
 	LastReconcile *metav1.Time `json:"lastReconcile"`
 	// Indicates if the secret has already been generated
 	Generated *bool `json:"generated"`
+	// Indicates if the copy secrets have been updated
+	Copied *bool `json:"copied"`
 }
 
 // +genclient

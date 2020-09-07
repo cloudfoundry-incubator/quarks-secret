@@ -35,6 +35,17 @@ var _ = Describe("QuarksCopies", func() {
 		}, 5*time.Second).Should(Equal(true))
 	}
 
+	checkCopyStatus := func() {
+		Eventually(func() bool {
+			qsec, err := env.GetQuarksSecret(env.Namespace, qsecName)
+			Expect(err).NotTo(HaveOccurred())
+			if qsec.Status.Copied != nil {
+				return *qsec.Status.Copied
+			}
+			return false
+		}, 5*time.Second).Should(Equal(true))
+	}
+
 	createQuarksSecretWithCopies := func(copyNamespace string) {
 		qsec = env.DefaultQuarksSecretWithCopy(qsecName, copyNamespace)
 		_, tearDown, err := env.CreateQuarksSecret(env.Namespace, qsec)
@@ -359,7 +370,7 @@ var _ = Describe("QuarksCopies", func() {
 			secret, err := env.CollectSecret(copyNamespace, "generated-secret-copy")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(secret.Labels)).To(Equal(1))
-			Expect(len(secret.Annotations)).To(Equal(2))
+			Expect(len(secret.Annotations)).To(Equal(1))
 			Expect(string(secret.Data["password"])).To(Equal("securepassword"))
 
 			By("Updating the user password secret")
@@ -369,7 +380,7 @@ var _ = Describe("QuarksCopies", func() {
 			tearDowns = append(tearDowns, tearDown)
 
 			By("Checking the quarkssecret status")
-			checkStatus()
+			checkCopyStatus()
 
 			By("Checking the copied secret data")
 			secret, err = env.CollectSecret(copyNamespace, "generated-secret-copy")
