@@ -21,10 +21,8 @@ import (
 
 	credsgen "code.cloudfoundry.org/quarks-secret/pkg/credsgen/in_memory_generator"
 	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
-	"code.cloudfoundry.org/quarks-secret/pkg/kube/util/reference"
 	"code.cloudfoundry.org/quarks-utils/pkg/config"
 	"code.cloudfoundry.org/quarks-utils/pkg/ctxlog"
-	"code.cloudfoundry.org/quarks-utils/pkg/pointers"
 	"code.cloudfoundry.org/quarks-utils/pkg/skip"
 )
 
@@ -127,29 +125,12 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 				return []reconcile.Request{}
 			}
 
-			reconciles, err := reference.GetReconciles(ctx, mgr.GetClient(), reference.ReconcileForQuarksSecret, secret, false)
+			reconciles, err := listQuarksSecretsReconciles(ctx, mgr.GetClient(), secret, secret.Namespace)
 			if err != nil {
 				ctxlog.Errorf(ctx, "Failed to calculate reconciles for secret '%s/%s': %v", secret.Namespace, secret.Name, err)
 			}
-
-			for _, reconciliation := range reconciles {
-				ctxlog.NewMappingEvent(a.Object).Debug(ctx, reconciliation, "QuarksSecret", a.Meta.GetName(), qsv1a1.KubeSecretReference)
-
-				qsec := qsv1a1.QuarksSecret{}
-				err := mgr.GetClient().Get(ctx, types.NamespacedName{Name: reconciliation.Name, Namespace: reconciliation.Namespace}, &qsec)
-				if err != nil {
-					ctxlog.Errorf(ctx, "could not get QuarksSecret '%s': %v", qsec.GetNamespacedName(), err)
-				}
-
-				if qsec.Status.Generated == nil {
-					qsec.Status = qsv1a1.QuarksSecretStatus{}
-				}
-				qsec.Status.Generated = pointers.Bool(false)
-				qsec.Status.LastReconcile = nil
-				err = mgr.GetClient().Status().Update(ctx, &qsec)
-				if err != nil {
-					ctxlog.Errorf(ctx, "could not update QuarksSecret status '%s': %v", qsec.GetNamespacedName(), err)
-				}
+			if len(reconciles) > 0 {
+				return reconciles
 			}
 
 			return reconciles
@@ -197,4 +178,27 @@ func isUserCreatedSecret(secret *corev1.Secret) bool {
 	secretLabels := secret.GetLabels()
 	_, ok := secretLabels[qsv1a1.LabelKind]
 	return !ok
+}
+
+// listQuarksSecretsReconciles lists all Quarks Secrets associated with the a particular secret.
+func listQuarksSecretsReconciles(ctx context.Context, client crc.Client, secret *corev1.Secret, namespace string) ([]reconcile.Request, error) {
+	quarksSecretList := &qsv1a1.QuarksSecretList{}
+	err := client.List(ctx, quarksSecretList, crc.InNamespace(namespace))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list QuarksSecrets")
+	}
+
+	result := []reconcile.Request{}
+	for _, quarksSecret := range quarksSecretList.Items {
+		if quarksSecret.Spec.SecretName == secret.Name {
+			request := reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      quarksSecret.Name,
+					Namespace: quarksSecret.Namespace,
+				}}
+			result = append(result, request)
+			ctxlog.NewMappingEvent(secret).Debug(ctx, request, "QuarksSecret", secret.Name, qsv1a1.KubeSecretReference)
+		}
+	}
+	return result, nil
 }
