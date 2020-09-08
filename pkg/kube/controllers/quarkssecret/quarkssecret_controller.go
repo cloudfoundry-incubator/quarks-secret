@@ -3,12 +3,10 @@ package quarkssecret
 import (
 	"context"
 	"fmt"
-	"reflect"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	crc "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -16,14 +14,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	credsgen "code.cloudfoundry.org/quarks-secret/pkg/credsgen/in_memory_generator"
 	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
 	"code.cloudfoundry.org/quarks-utils/pkg/config"
 	"code.cloudfoundry.org/quarks-utils/pkg/ctxlog"
-	"code.cloudfoundry.org/quarks-utils/pkg/skip"
 )
 
 // AddQuarksSecret creates a new QuarksSecrets controller to watch for the
@@ -67,9 +63,17 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 			n := e.ObjectNew.(*qsv1a1.QuarksSecret)
 			o := e.ObjectOld.(*qsv1a1.QuarksSecret)
 
-			if reflect.DeepEqual(n.Spec, o.Spec) && reflect.DeepEqual(n.Labels, o.Labels) &&
-				reflect.DeepEqual(n.Annotations, o.Annotations) && reflect.DeepEqual(n.Status, o.Status) {
-				return false
+			if o.Status.Generated != nil {
+				ctxlog.Infof(ctx, "Old Status", *o.Status.Generated)
+			}
+			if n.Status.Generated != nil {
+				ctxlog.Infof(ctx, "New Status", *n.Status.Generated)
+			}
+			if o.Status.Copied != nil {
+				ctxlog.Infof(ctx, "Old Copied", *o.Status.Copied)
+			}
+			if n.Status.Copied != nil {
+				ctxlog.Infof(ctx, "New Copied", *n.Status.Copied)
 			}
 
 			// When should we reconcile?
@@ -84,12 +88,17 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 			// | true  | nil   | false      |
 			// | false | nil   | true       |
 			// | nil   | nil   | true       |
-			if !n.Status.NotGenerated() || (n.Status.Generated == nil && !o.Status.IsGenerated()) {
-				ctxlog.NewPredicateEvent(e.ObjectNew).Debug(
-					ctx, e.MetaNew, "qsv1a1.QuarksSecret",
-					fmt.Sprintf("Update predicate passed for '%s/%s'.", e.MetaNew.GetNamespace(), e.MetaNew.GetName()),
-				)
-				return true
+			if (n.Status.Generated != nil && !*n.Status.Generated) || (n.Status.Generated == nil && (o.Status.Generated == nil || !*o.Status.Generated)) {
+				// Make a fun like notcopied copied
+				ctxlog.Infof(ctx, "controller 1")
+				if *n.Status.Copied == *o.Status.Copied {
+					ctxlog.Infof(ctx, "controller 2")
+					ctxlog.NewPredicateEvent(e.ObjectNew).Debug(
+						ctx, e.MetaNew, "qsv1a1.QuarksSecret",
+						fmt.Sprintf("Update predicate passed for '%s/%s'.", e.MetaNew.GetNamespace(), e.MetaNew.GetName()),
+					)
+					return true
+				}
 			}
 			return false
 		},
@@ -97,47 +106,6 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 	err = c.Watch(&source.Kind{Type: &qsv1a1.QuarksSecret{}}, &handler.EnqueueRequestForObject{}, nsPred, p)
 	if err != nil {
 		return errors.Wrapf(err, "Watching quarks secrets failed in quarksSecret controller.")
-	}
-
-	// Watch for changes to user created secrets
-	p = predicate.Funcs{
-		CreateFunc:  func(e event.CreateEvent) bool { return false },
-		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
-		GenericFunc: func(e event.GenericEvent) bool { return false },
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			n := e.ObjectNew.(*corev1.Secret)
-			o := e.ObjectOld.(*corev1.Secret)
-
-			shouldProcessReconcile := isUserCreatedSecret(n)
-			if reflect.DeepEqual(n.Data, o.Data) && reflect.DeepEqual(n.Labels, o.Labels) &&
-				reflect.DeepEqual(n.Annotations, o.Annotations) {
-				return false
-			}
-
-			return shouldProcessReconcile
-		},
-	}
-	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestsFromMapFunc{
-		ToRequests: handler.ToRequestsFunc(func(a handler.MapObject) []reconcile.Request {
-			secret := a.Object.(*corev1.Secret)
-
-			if skip.Reconciles(ctx, mgr.GetClient(), secret) {
-				return []reconcile.Request{}
-			}
-
-			reconciles, err := listQuarksSecretsReconciles(ctx, mgr.GetClient(), secret, secret.Namespace)
-			if err != nil {
-				ctxlog.Errorf(ctx, "Failed to calculate reconciles for secret '%s/%s': %v", secret.Namespace, secret.Name, err)
-			}
-			if len(reconciles) > 0 {
-				return reconciles
-			}
-
-			return reconciles
-		}),
-	}, nsPred, p)
-	if err != nil {
-		return errors.Wrapf(err, "Watching secrets failed in quarks secret controller.")
 	}
 
 	return nil
@@ -171,34 +139,5 @@ func listSecrets(ctx context.Context, client crc.Client, qsec *qsv1a1.QuarksSecr
 		ctxlog.Debug(ctx, "Did not find any Secret owned by QuarksSecret '", qsec.GetNamespacedName(), "'")
 	}
 
-	return result, nil
-}
-
-func isUserCreatedSecret(secret *corev1.Secret) bool {
-	secretLabels := secret.GetLabels()
-	_, ok := secretLabels[qsv1a1.LabelKind]
-	return !ok
-}
-
-// listQuarksSecretsReconciles lists all Quarks Secrets associated with the a particular secret.
-func listQuarksSecretsReconciles(ctx context.Context, client crc.Client, secret *corev1.Secret, namespace string) ([]reconcile.Request, error) {
-	quarksSecretList := &qsv1a1.QuarksSecretList{}
-	err := client.List(ctx, quarksSecretList, crc.InNamespace(namespace))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to list QuarksSecrets")
-	}
-
-	result := []reconcile.Request{}
-	for _, quarksSecret := range quarksSecretList.Items {
-		if quarksSecret.Spec.SecretName == secret.Name {
-			request := reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      quarksSecret.Name,
-					Namespace: quarksSecret.Namespace,
-				}}
-			result = append(result, request)
-			ctxlog.NewMappingEvent(secret).Debug(ctx, request, "QuarksSecret", secret.Name, qsv1a1.KubeSecretReference)
-		}
-	}
 	return result, nil
 }
