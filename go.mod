@@ -3,7 +3,7 @@ module code.cloudfoundry.org/quarks-secret
 go 1.14
 
 require (
-	code.cloudfoundry.org/quarks-utils v0.0.0-20200901084422-8ffd423001d8
+	code.cloudfoundry.org/quarks-utils v0.0.0-20200908102830-afb06ba35970
 	github.com/cloudflare/cfssl v1.4.1
 	github.com/dchest/uniuri v0.0.0-20200228104902-7aecb25e1fe5
 	github.com/onsi/ginkgo v1.11.0
