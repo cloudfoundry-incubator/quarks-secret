@@ -2,12 +2,10 @@ package quarkssecret
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	crc "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -45,21 +43,23 @@ func AddCopy(ctx context.Context, config *config.Config, mgr manager.Manager) er
 
 	// Watch for changes to the copied status of QuarksSecrets
 	p := predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool { return false }
+		CreateFunc:  func(e event.CreateEvent) bool { return false },
 		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
 		GenericFunc: func(e event.GenericEvent) bool { return false },
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			n := e.ObjectNew.(*qsv1a1.QuarksSecret)
-			o := e.ObjectOld.(*qsv1a1.QuarksSecret)
 
-			return *n.
+			if n.Status.Copied != nil {
+				ctxlog.Infof(ctx, "New status copied", *n.Status.Copied)
+				return !(*n.Status.Copied)
+			}
 
-			
+			return true
 		},
 	}
 	err = c.Watch(&source.Kind{Type: &qsv1a1.QuarksSecret{}}, &handler.EnqueueRequestForObject{}, nsPred, p)
 	if err != nil {
-		return errors.Wrapf(err, "Watching quarks secrets failed in quarksSecret controller.")
+		return errors.Wrapf(err, "Watching quarks secrets failed in copy controller.")
 	}
 
 	// Watch for changes to user created secrets
@@ -100,41 +100,10 @@ func AddCopy(ctx context.Context, config *config.Config, mgr manager.Manager) er
 		}),
 	}, nsPred, p)
 	if err != nil {
-		return errors.Wrapf(err, "Watching secrets failed in quarks secret controller.")
+		return errors.Wrapf(err, "Watching user defined secrets failed in copy controller.")
 	}
 
 	return nil
-}
-
-// listSecrets gets all Secrets owned by the QuarksSecret
-func listSecrets(ctx context.Context, client crc.Client, qsec *qsv1a1.QuarksSecret) ([]corev1.Secret, error) {
-	ctxlog.Debug(ctx, "Listing Secrets owned by QuarksSecret '", qsec.GetNamespacedName(), "'")
-
-	secretLabels := map[string]string{qsv1a1.LabelKind: qsv1a1.GeneratedSecretKind}
-	result := []corev1.Secret{}
-
-	allSecrets := &corev1.SecretList{}
-	err := client.List(ctx, allSecrets,
-		crc.InNamespace(qsec.Namespace),
-		crc.MatchingLabels(secretLabels),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, s := range allSecrets.Items {
-		secret := s
-		if metav1.IsControlledBy(&secret, qsec) {
-			result = append(result, secret)
-			ctxlog.Debug(ctx, "Found Secret '", secret.Name, "' owned by QuarksSecret '", qsec.GetNamespacedName(), "'")
-		}
-	}
-
-	if len(result) == 0 {
-		ctxlog.Debug(ctx, "Did not find any Secret owned by QuarksSecret '", qsec.GetNamespacedName(), "'")
-	}
-
-	return result, nil
 }
 
 func isUserCreatedSecret(secret *corev1.Secret) bool {

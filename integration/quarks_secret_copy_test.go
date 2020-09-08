@@ -90,9 +90,6 @@ var _ = Describe("QuarksCopies", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      qsecName,
 					Namespace: copyNamespace,
-					Labels: map[string]string{
-						"quarks.cloudfoundry.org/secret-kind": "generated",
-					},
 					Annotations: map[string]string{
 						"quarks.cloudfoundry.org/secret-copy-of": env.Namespace + "/" + qsecName,
 					},
@@ -114,6 +111,7 @@ var _ = Describe("QuarksCopies", func() {
 		It("should copy the generated secret to the copy namespace if qsec is found", func() {
 			By("Checking the quarkssecret status")
 			checkStatus()
+			//checkCopyStatus()
 
 			By("Checking the secret in source namespace")
 			secret, err := env.GetSecret(env.Namespace, "generated-secret")
@@ -228,6 +226,7 @@ var _ = Describe("QuarksCopies", func() {
 		It("should copy the rotated generated secret to the copy namespace if copy secret is found", func() {
 			By("Checking the quarkssecret status")
 			checkStatus()
+			checkCopyStatus()
 
 			secret, err := env.CollectSecret(env.Namespace, "generated-secret")
 			Expect(err).NotTo(HaveOccurred())
@@ -247,6 +246,7 @@ var _ = Describe("QuarksCopies", func() {
 
 			By("Checking the quarkssecret status")
 			checkStatus()
+			checkCopyStatus()
 
 			By("Checking the secret data in source namespace")
 			secret, err = env.CollectSecret(env.Namespace, "generated-secret")
@@ -328,9 +328,6 @@ var _ = Describe("QuarksCopies", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "generated-secret-copy",
 					Namespace: copyNamespace,
-					Labels: map[string]string{
-						"quarks.cloudfoundry.org/secret-kind": "generated",
-					},
 					Annotations: map[string]string{
 						"quarks.cloudfoundry.org/secret-copy-of": env.Namespace + "/" + qsecName,
 					},
@@ -354,22 +351,23 @@ var _ = Describe("QuarksCopies", func() {
 		It("should copy into other namespaces if copy empty secret if found", func() {
 			By("Checking the quarkssecret status")
 			checkStatus()
+			checkCopyStatus()
 
 			By("Checking the copied secret data")
 			secret, err := env.CollectSecret(copyNamespace, "generated-secret-copy")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(len(secret.Labels)).To(Equal(1))
+			Expect(len(secret.Annotations)).To(Equal(1))
 			Expect(string(secret.Data["password"])).To(Equal("securepassword"))
 		})
 
 		It("should update the copies in other namespaces if copy empty secret is found", func() {
 			By("Checking the quarkssecret status")
 			checkStatus()
+			checkCopyStatus()
 
 			By("Checking the copied secret data")
 			secret, err := env.CollectSecret(copyNamespace, "generated-secret-copy")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(len(secret.Labels)).To(Equal(1))
 			Expect(len(secret.Annotations)).To(Equal(1))
 			Expect(string(secret.Data["password"])).To(Equal("securepassword"))
 
@@ -381,11 +379,12 @@ var _ = Describe("QuarksCopies", func() {
 
 			By("Checking the quarkssecret status")
 			checkCopyStatus()
+			checkCopyStatus()
 
 			By("Checking the copied secret data")
 			secret, err = env.CollectSecret(copyNamespace, "generated-secret-copy")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(len(secret.Labels)).To(Equal(1))
+			Expect(len(secret.Annotations)).To(Equal(1))
 			Expect(string(secret.Data["password"])).To(Equal("supersecurepassword"))
 		})
 	})
@@ -438,6 +437,7 @@ var _ = Describe("QuarksCopies", func() {
 		It("should copy into other namespaces if copy quarks secret if found", func() {
 			By("Checking the quarkssecret status")
 			checkStatus()
+			checkCopyStatus()
 
 			By("Checking the copied secret data")
 			secret, err := env.CollectSecret(copyNamespace, "generated-secret-copy")
@@ -455,6 +455,7 @@ var _ = Describe("QuarksCopies", func() {
 
 			By("Checking the quarkssecret status")
 			checkStatus()
+			checkCopyStatus()
 
 			By("Checking the copied secret data")
 			secret, err := env.CollectSecret(copyNamespace, "generated-secret-copy")
