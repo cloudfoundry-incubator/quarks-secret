@@ -21,7 +21,7 @@ import (
 // * (q)secret exists, but it's not marked as generated (label) and a copy (annotation)
 func (r *ReconcileQuarksSecret) skipCopy(ctx context.Context, qsec *qsv1a1.QuarksSecret, sourceQsec *qsv1a1.QuarksSecret) (bool, bool, error) {
 	copyOf := sourceQsec.GetNamespacedName()
-	if qsec.Status.Generated != nil && *qsec.Status.Generated {
+	if qsec.Status.IsGenerated() {
 		ctxlog.Debugf(ctx, "Existing secret %s/%s has already been generated",
 			qsec.Namespace,
 			qsec.Spec.SecretName,
