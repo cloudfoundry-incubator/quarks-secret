@@ -155,6 +155,17 @@ type QuarksSecretStatus struct {
 	Generated *bool `json:"generated"`
 }
 
+// IsGenerated returns true if the Generated field is a true value
+func (qs QuarksSecretStatus) IsGenerated() bool {
+	return qs.Generated != nil && *qs.Generated
+
+}
+
+// NotGenerated returns true if the Generated field is set to false, but not nil
+func (qs QuarksSecretStatus) NotGenerated() bool {
+	return qs.Generated != nil && !*qs.Generated
+}
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 

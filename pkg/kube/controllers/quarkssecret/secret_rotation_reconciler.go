@@ -80,7 +80,7 @@ func (r *ReconcileSecretRotation) Reconcile(request reconcile.Request) (reconcil
 		}
 
 		// skip manual secrets or the ones that have not yet been generated
-		if qsec.Status.Generated != nil && !*qsec.Status.Generated {
+		if qsec.Status.NotGenerated() {
 			ctxlog.Debugf(ctx, "QuarksSecret '%s' cannot be rotated, it was not generated", qsec.GetNamespacedName())
 			continue
 		}
