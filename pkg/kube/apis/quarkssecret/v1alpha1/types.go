@@ -14,6 +14,15 @@ import (
 // It's used as input for the Kube code generator
 // Run "make generate" after modifying this file
 
+// ReferenceType lists all the types of Reference we can supports
+type ReferenceType = string
+
+// Valid values for ref types
+const (
+	// SecretReference represents Secret reference
+	KubeSecretReference ReferenceType = "secret"
+)
+
 // SecretType defines the type of the generated secret
 type SecretType = string
 
@@ -153,6 +162,19 @@ type QuarksSecretStatus struct {
 	LastReconcile *metav1.Time `json:"lastReconcile"`
 	// Indicates if the secret has already been generated
 	Generated *bool `json:"generated"`
+	// Indicates if the copy secrets have been updated
+	Copied *bool `json:"copied"`
+}
+
+// IsCopied returns true if the copied field is a true value
+func (qs QuarksSecretStatus) IsCopied() bool {
+	return qs.Copied != nil && *qs.Copied
+
+}
+
+// NotCopied returns true if the copied field is a false value
+func (qs QuarksSecretStatus) NotCopied() bool {
+	return qs.Copied != nil && *qs.Copied
 }
 
 // IsGenerated returns true if the Generated field is a true value

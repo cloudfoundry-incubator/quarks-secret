@@ -11,12 +11,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"code.cloudfoundry.org/quarks-secret/pkg/credsgen"
 	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
+	"code.cloudfoundry.org/quarks-secret/pkg/kube/util/mutate"
 	"code.cloudfoundry.org/quarks-utils/pkg/config"
 	"code.cloudfoundry.org/quarks-utils/pkg/ctxlog"
 	"code.cloudfoundry.org/quarks-utils/pkg/meltdown"
@@ -193,6 +196,7 @@ func (r *ReconcileQuarksSecret) Reconcile(request reconcile.Request) (reconcile.
 
 func (r *ReconcileQuarksSecret) updateStatus(ctx context.Context, qsec *qsv1a1.QuarksSecret) {
 	qsec.Status.Generated = pointers.Bool(true)
+	qsec.Status.Copied = pointers.Bool(false)
 
 	now := metav1.Now()
 	qsec.Status.LastReconcile = &now
@@ -213,17 +217,13 @@ func (r *ReconcileQuarksSecret) skipCreation(ctx context.Context, qsec *qsv1a1.Q
 		)
 		return true, nil
 	}
-
 	secretName := qsec.Spec.SecretName
-
 	existingSecret := &corev1.Secret{}
-
 	err := r.client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: qsec.GetNamespace()}, existingSecret)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return false, nil
 		}
-
 		return false, errors.Wrapf(err, "could not get secret")
 	}
 
@@ -262,37 +262,33 @@ func (r *ReconcileQuarksSecret) createSecrets(ctx context.Context, qsec *qsv1a1.
 		}
 	}
 
-	// See if we have to make any copies
-	for _, copy := range qsec.Spec.Copies {
-		copiedQSec := qsec.DeepCopy()
-		copiedSecret := &corev1.Secret{}
+	return nil
+}
 
-		copiedQSec.Spec.SecretName = copy.Name
-		copiedQSec.Namespace = copy.Namespace
-		copiedSecret.Name = copy.Name
-		copiedSecret.Namespace = copy.Namespace
-		copiedSecret.Data = secret.Data
-		copiedSecret.Annotations = secret.Annotations
-		copiedSecret.Labels = secret.Labels
+// createSecret applies common properties(labels and ownerReferences) to the secret and creates it
+func (r *ReconcileQuarksSecret) createSecret(ctx context.Context, qsec *qsv1a1.QuarksSecret, secret *corev1.Secret) error {
+	ctxlog.Debugf(ctx, "Creating secret '%s/%s', owned by quarks secret '%s'", secret.Namespace, secret.Name, qsec.GetNamespacedName())
 
-		// We look and see if the secret is of the generated type
-		// And also check if we're allowed to create the resource in the target namespace
-		// We require an existing secret or qsecret with a label already be present in the target namespace
-		skip, needsCreation, err := r.skipCopy(ctx, copiedQSec, qsec)
-		if err != nil {
-			ctxlog.Errorf(ctx, "Error reading the secret: %v", err.Error())
-		}
-		if skip {
-			ctxlog.WithEvent(qsec, "SkipCreation").Infof(ctx, "Skip copy creation: Secret/QSecret '%s' must exist and have the appropriate labels and annotations to receive a copy", copy.String())
-		} else if needsCreation {
-			if err := r.createCopySecret(ctx, copiedQSec, copiedSecret, qsec.GetNamespacedName()); err != nil {
-				return err
-			}
-		} else {
-			if err := r.updateCopySecret(ctx, copiedSecret); err != nil {
-				return err
-			}
-		}
+	secretLabels := secret.GetLabels()
+	if secretLabels == nil {
+		secretLabels = map[string]string{}
+	}
+
+	secretLabels[qsv1a1.LabelKind] = qsv1a1.GeneratedSecretKind
+
+	secret.SetLabels(secretLabels)
+
+	if err := r.setReference(qsec, secret, r.scheme); err != nil {
+		return errors.Wrapf(err, "error setting owner for secret '%s' to QuarksSecret '%s'", secret.GetName(), qsec.GetNamespacedName())
+	}
+
+	op, err := controllerutil.CreateOrUpdate(ctx, r.client, secret, mutate.SecretMutateFn(secret))
+	if err != nil {
+		return errors.Wrapf(err, "could not create or update secret '%s/%s'", secret.Namespace, secret.GetName())
+	}
+
+	if op != "unchanged" {
+		ctxlog.Debugf(ctx, "Secret '%s' has been %s", secret.Name, op)
 	}
 
 	return nil
