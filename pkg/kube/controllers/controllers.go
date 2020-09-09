@@ -16,6 +16,7 @@ import (
 // itself is started.
 var addToManagerFuncs = []func(context.Context, *config.Config, manager.Manager) error{
 	quarkssecret.AddCertificateSigningRequest,
+	quarkssecret.AddCopy,
 	quarkssecret.AddQuarksSecret,
 	quarkssecret.AddSecretRotation,
 }
