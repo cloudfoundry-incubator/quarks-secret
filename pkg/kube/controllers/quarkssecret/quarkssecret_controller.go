@@ -63,19 +63,7 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 			n := e.ObjectNew.(*qsv1a1.QuarksSecret)
 			o := e.ObjectOld.(*qsv1a1.QuarksSecret)
 
-			// When should we reconcile?
-			// | old   | new   | reconcile? |
-			// | ----- | ----- | ---------- |
-			// | true  | true  | false      |
-			// | false | true  | false      |
-			// | nil   | true  | false      |
-			// | true  | false | true       |
-			// | false | false | true       |
-			// | nil   | false | true       |
-			// | true  | nil   | false      |
-			// | false | nil   | true       |
-			// | nil   | nil   | true       |
-			if n.Status.NotGenerated() || (n.Status.Generated == nil && !o.Status.IsGenerated()) {
+			if reconcileForGenerated(n.Status, o.Status) {
 				if n.Status.IsCopied() == o.Status.IsCopied() {
 					ctxlog.NewPredicateEvent(e.ObjectNew).Debug(
 						ctx, e.MetaNew, "qsv1a1.QuarksSecret",
@@ -93,6 +81,32 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 	}
 
 	return nil
+}
+
+// reconcileForGenerated determines if we should reconcile, depending on the
+// old and new generated status
+// | old   | new   | reconcile? |
+// | ----- | ----- | ---------- |
+// | true  | true  | false      |
+// | false | true  | false      |
+// | nil   | true  | false      |
+// | true  | false | true       |
+// | false | false | true       |
+// | nil   | false | true       |
+// | true  | nil   | false      |
+// | false | nil   | true       |
+// | nil   | nil   | true       |
+func reconcileForGenerated(o, n qsv1a1.QuarksSecretStatus) bool {
+	if n.Generated != nil {
+		// new generated is set
+		return !*n.Generated
+	}
+	if o.Generated != nil && *o.Generated {
+		// old generated is true
+		return false
+	}
+	// old is either nil or false
+	return true
 }
 
 // listSecrets gets all Secrets owned by the QuarksSecret

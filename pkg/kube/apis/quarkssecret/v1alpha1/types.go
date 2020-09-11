@@ -179,13 +179,18 @@ func (qs QuarksSecretStatus) NotCopied() bool {
 
 // IsGenerated returns true if the Generated field is a true value
 func (qs QuarksSecretStatus) IsGenerated() bool {
-	return qs.Generated != nil && *qs.Generated
-
+	if qs.Generated == nil {
+		return false
+	}
+	return *qs.Generated
 }
 
 // NotGenerated returns true if the Generated field is set to false, but not nil
 func (qs QuarksSecretStatus) NotGenerated() bool {
-	return qs.Generated != nil && !*qs.Generated
+	if qs.Generated == nil {
+		return false
+	}
+	return !*qs.Generated
 }
 
 // +genclient
