@@ -3,8 +3,8 @@ bitbucket.org/liamstask/goose v0.0.0-20150115234039-8488cc47d90c/go.mod h1:hSVuE
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.38.0/go.mod h1:990N+gfupTy94rShfmMCWGDn0LpTmnzTp2qbd1dvSRU=
-code.cloudfoundry.org/quarks-utils v0.0.0-20200829154949-d5f9a891a0d6 h1:vlS/BZ9hdt5cI4h9CZEl9ynYYIGZdi4n41cqV1QdSIQ=
-code.cloudfoundry.org/quarks-utils v0.0.0-20200829154949-d5f9a891a0d6/go.mod h1:Dlc5H34JWsNtMjdJYf7nm8hoxNl+hEQR0AMk0qOSmjc=
+code.cloudfoundry.org/quarks-utils v0.0.0-20200911114130-7b6fe4c269e6 h1:e/ASQNPuSNTA+QRtpRrFG62FQ8WUdQeCV2UQE/j924I=
+code.cloudfoundry.org/quarks-utils v0.0.0-20200911114130-7b6fe4c269e6/go.mod h1:Dlc5H34JWsNtMjdJYf7nm8hoxNl+hEQR0AMk0qOSmjc=
 github.com/Azure/azure-sdk-for-go v16.2.1+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
 github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78/go.mod h1:LmzpDX56iTiv29bbRTIsUNlaFfuhWRQBWjQdVyAevI8=
 github.com/Azure/go-autorest v10.8.1+incompatible/go.mod h1:r+4oMnoxhatjLLJ6zxSWATqVooLgysK6ZNox3g/xq24=
