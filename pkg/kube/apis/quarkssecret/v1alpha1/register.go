@@ -119,6 +119,19 @@ var (
 		},
 	}
 
+	// QuarksSecretAdditionalPrinterColumns are used by `kubectl get`
+	QuarksSecretAdditionalPrinterColumns = []extv1.CustomResourceColumnDefinition{
+		{
+			Name:     "copied",
+			Type:     "boolean",
+			JSONPath: ".status.completed",
+		},
+		{
+			Name:     "generated",
+			Type:     "boolean",
+			JSONPath: ".status.generated",
+		},
+	}
 	// QuarksSecretResourceName is the resource name of QuarksSecret
 	QuarksSecretResourceName = fmt.Sprintf("%s.%s", QuarksSecretResourcePlural, apis.GroupName)
 
