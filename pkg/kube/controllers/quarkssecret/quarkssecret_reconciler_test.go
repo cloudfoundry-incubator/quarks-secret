@@ -29,7 +29,6 @@ import (
 	qscontroller "code.cloudfoundry.org/quarks-secret/pkg/kube/controllers/quarkssecret"
 	cfcfg "code.cloudfoundry.org/quarks-utils/pkg/config"
 	"code.cloudfoundry.org/quarks-utils/pkg/ctxlog"
-	"code.cloudfoundry.org/quarks-utils/pkg/pointers"
 	helper "code.cloudfoundry.org/quarks-utils/testing/testhelper"
 )
 
@@ -654,19 +653,6 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 		})
 
 		It("Skips generation of a secret when existing secret has not `generated` label", func() {
-			result, err := reconciler.Reconcile(request)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(client.CreateCallCount()).To(Equal(0))
-			Expect(client.UpdateCallCount()).To(Equal(0))
-			Expect(reconcile.Result{}).To(Equal(result))
-		})
-
-		It("Skips generation of a secret when quarksSecret's `generated` status is true", func() {
-			secret.Labels = map[string]string{
-				qsv1a1.LabelKind: qsv1a1.GeneratedSecretKind,
-			}
-			qSecret.Status.Generated = pointers.Bool(true)
-
 			result, err := reconciler.Reconcile(request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client.CreateCallCount()).To(Equal(0))
