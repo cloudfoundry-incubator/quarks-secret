@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	extv1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -45,25 +46,29 @@ func NewManager(ctx context.Context, config *config.Config, cfg *rest.Config, op
 
 // ApplyCRDs applies a collection of CRDs into the cluster
 func ApplyCRDs(ctx context.Context, config *rest.Config) error {
-	exClient, err := extv1client.NewForConfig(config)
+	client, err := extv1client.NewForConfig(config)
 	if err != nil {
 		return errors.Wrap(err, "Could not get kube client")
 	}
 
-	err = crd.ApplyCRD(
-		ctx,
-		exClient,
+	b := crd.New(
 		qsv1a1.QuarksSecretResourceName,
-		qsv1a1.QuarksSecretResourceKind,
-		qsv1a1.QuarksSecretResourcePlural,
-		qsv1a1.QuarksSecretResourceShortNames,
+		extv1.CustomResourceDefinitionNames{
+			Kind:       qsv1a1.QuarksSecretResourceKind,
+			Plural:     qsv1a1.QuarksSecretResourcePlural,
+			ShortNames: qsv1a1.QuarksSecretResourceShortNames,
+		},
 		qsv1a1.SchemeGroupVersion,
-		&qsv1a1.QuarksSecretValidation,
 	)
+
+	err = b.WithValidation(&qsv1a1.QuarksSecretValidation).
+		WithAdditionalPrinterColumns(qsv1a1.QuarksSecretAdditionalPrinterColumns).
+		Build().
+		Apply(ctx, client)
 	if err != nil {
 		return errors.Wrapf(err, "failed to apply CRD '%s'", qsv1a1.QuarksSecretResourceName)
 	}
-	err = crd.WaitForCRDReady(ctx, exClient, qsv1a1.QuarksSecretResourceName)
+	err = crd.WaitForCRDReady(ctx, client, qsv1a1.QuarksSecretResourceName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to wait for CRD '%s' ready", qsv1a1.QuarksSecretResourceName)
 	}
