@@ -32,7 +32,7 @@ var _ = Describe("QuarksCopies", func() {
 				return *qsec.Status.Generated
 			}
 			return false
-		}, 5*time.Second).Should(Equal(true))
+		}, 10*time.Second).Should(Equal(true))
 	}
 
 	checkCopyStatus := func() {
@@ -43,7 +43,7 @@ var _ = Describe("QuarksCopies", func() {
 				return *qsec.Status.Copied
 			}
 			return false
-		}, 5*time.Second).Should(Equal(true))
+		}, 10*time.Second).Should(Equal(true))
 	}
 
 	createQuarksSecretWithCopies := func(copyNamespace string) {

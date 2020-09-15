@@ -210,13 +210,6 @@ func (r *ReconcileQuarksSecret) updateStatus(ctx context.Context, qsec *qsv1a1.Q
 // * secret is already generated according to qsecs status field
 // * secret exists, but was not generated (user created secret)
 func (r *ReconcileQuarksSecret) skipCreation(ctx context.Context, qsec *qsv1a1.QuarksSecret) (bool, error) {
-	if qsec.Status.Generated != nil && *qsec.Status.Generated {
-		ctxlog.Debugf(ctx, "Existing secret %s/%s has already been generated",
-			qsec.Namespace,
-			qsec.Spec.SecretName,
-		)
-		return true, nil
-	}
 	secretName := qsec.Spec.SecretName
 	existingSecret := &corev1.Secret{}
 	err := r.client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: qsec.GetNamespace()}, existingSecret)
