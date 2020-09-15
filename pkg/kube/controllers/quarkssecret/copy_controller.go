@@ -50,7 +50,6 @@ func AddCopy(ctx context.Context, config *config.Config, mgr manager.Manager) er
 			n := e.ObjectNew.(*qsv1a1.QuarksSecret)
 
 			if n.Status.Copied != nil {
-				ctxlog.Infof(ctx, "New status copied", *n.Status.Copied)
 				return !(*n.Status.Copied)
 			}
 
