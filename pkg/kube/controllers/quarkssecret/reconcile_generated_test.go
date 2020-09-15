@@ -63,9 +63,9 @@ var _ = Describe("Status.Generated", func() {
 		It("should honor results from the table in documentation", func() {
 			tests := []test{
 				newTest(true, true, false),
-				newTest(false, true, false),
-				newTestP(nil, pointers.Bool(true), false),
-				newTest(true, false, true),
+				newTest(false, true, true),
+				newTestP(nil, pointers.Bool(true), true),
+				newTest(true, false, false),
 				newTest(false, false, true),
 				newTestP(nil, pointers.Bool(false), true),
 				newTestP(pointers.Bool(true), nil, false),

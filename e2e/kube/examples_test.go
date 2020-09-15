@@ -24,6 +24,22 @@ var _ = Describe("Examples Directory", func() {
 		kubectl      *cmdHelper.Kubectl
 	)
 
+	replaceString := func(examplePath string, toBeReplaced string, replacedBy string) string {
+		exampleData, err := ioutil.ReadFile(examplePath)
+		Expect(err).ToNot(HaveOccurred())
+
+		newExampleFile, err := ioutil.TempFile(os.TempDir(), "qsec-*")
+		Expect(err).ToNot(HaveOccurred(), "creating new example file in examples dir")
+		_, err = newExampleFile.WriteString(
+			strings.ReplaceAll(
+				string(exampleData), toBeReplaced, replacedBy,
+			))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(newExampleFile.Close()).ToNot(HaveOccurred())
+
+		return newExampleFile.Name()
+	}
+
 	JustBeforeEach(func() {
 		kubectl = cmdHelper.NewKubectl()
 		yamlFilePath = path.Join(example)
@@ -104,7 +120,6 @@ var _ = Describe("Examples Directory", func() {
 
 	Context("quarks-secret copies", func() {
 		var copyNamespace string
-		var tempQSecretFileName string
 
 		BeforeEach(func() {
 			copyNamespace = "qseccopy-" + strconv.Itoa(int(nsIndex)) + "-" +
@@ -117,45 +132,22 @@ var _ = Describe("Examples Directory", func() {
 
 			// Create a copy of the example files with the correct namespaces in them
 			dSecretExample := path.Join(examplesDir, "copy-secret-destination.yaml")
-			dSecret, err := ioutil.ReadFile(dSecretExample)
-			Expect(err).ToNot(HaveOccurred())
-			tmpDSecret, err := ioutil.TempFile(os.TempDir(), "dsecret-*")
-			defer os.Remove(tmpDSecret.Name())
-			Expect(err).ToNot(HaveOccurred(), "creating tmp file")
-			_, err = tmpDSecret.WriteString(
-				strings.ReplaceAll(
-					strings.ReplaceAll(
-						string(dSecret), "COPYNAMESPACE", copyNamespace,
-					), "NAMESPACE", namespace))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(tmpDSecret.Close()).ToNot(HaveOccurred())
+			dSecretPath := replaceString(dSecretExample, "COPYNAMESPACE", copyNamespace)
+			defer os.Remove(dSecretPath)
 
 			// A copy of the QuarkSecret with the correct COPYNAMESPACE in it
 			quarksSecretExample := path.Join(examplesDir, "copies.yaml")
-			qSecret, err := ioutil.ReadFile(quarksSecretExample)
-			Expect(err).ToNot(HaveOccurred())
-			tmpQSecret, err := ioutil.TempFile(os.TempDir(), "qsec-*")
-			tempQSecretFileName = tmpQSecret.Name()
-			Expect(err).ToNot(HaveOccurred(), "creating tmp file in examples dir")
-			_, err = tmpQSecret.WriteString(
-				strings.ReplaceAll(
-					string(qSecret), "COPYNAMESPACE", copyNamespace,
-				))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(tmpQSecret.Close()).ToNot(HaveOccurred())
+			tempQSecretFilePath := replaceString(quarksSecretExample, "COPYNAMESPACE", copyNamespace)
 
 			// Create the destination secret
-			err = cmdHelper.Create(copyNamespace, tmpDSecret.Name())
+			err = cmdHelper.Create(copyNamespace, dSecretPath)
 			Expect(err).ToNot(HaveOccurred())
 
-			example = tempQSecretFileName
+			example = tempQSecretFilePath
 		})
 
 		AfterEach(func() {
 			err := cmdHelper.DeleteNamespace(copyNamespace)
-			Expect(err).ToNot(HaveOccurred())
-
-			err = os.Remove(tempQSecretFileName)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -284,6 +276,38 @@ var _ = Describe("Examples Directory", func() {
 			dnsName := "metron"
 			err = testing.CertificateVerify(rootPEM, certPEM, dnsName)
 			Expect(err).ToNot(HaveOccurred(), "error verifying certificates")
+		})
+	})
+
+	Context("certificate example", func() {
+		BeforeEach(func() {
+			example = filepath.Join(examplesDir, "certificate.yaml")
+		})
+
+		When("quarks secret spec is updated", func() {
+			It("should update the generated certificate", func() {
+				expectedSecretName := "gen-certificate"
+				err := kubectl.WaitForSecret(namespace, expectedSecretName)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("Checking the old generated certificate")
+				oldCertificateData, err := cmdHelper.GetData(namespace, "secret", expectedSecretName, "go-template={{.data.certificate}}")
+				Expect(err).ToNot(HaveOccurred())
+
+				newExampleFile := replaceString(example, "foo.com", "bar.com")
+				err = cmdHelper.Apply(namespace, newExampleFile)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("Waiting for new secret to be generated")
+				time.Sleep(60 * time.Second)
+
+				By("Checking the new generated certificate")
+				Eventually(func() bool {
+					newCertificateData, err := cmdHelper.GetData(namespace, "secret", expectedSecretName, "go-template={{.data.certificate}}")
+					Expect(err).ToNot(HaveOccurred())
+					return string(newCertificateData) == string(oldCertificateData)
+				}, 60*time.Second).Should(Equal(true))
+			})
 		})
 	})
 
