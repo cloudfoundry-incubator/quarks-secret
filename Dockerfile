@@ -14,6 +14,7 @@ RUN bin/build && \
     cp -p binaries/quarks-secret /usr/local/bin/quarks-secret
 
 FROM $BASE_IMAGE
+LABEL org.opencontainers.image.source https://github.com/cloudfoundry-incubator/quarks-secret
 RUN groupadd quarks && \
     useradd -r -g quarks quarks
 USER quarks

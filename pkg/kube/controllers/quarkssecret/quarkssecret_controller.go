@@ -63,7 +63,7 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 			n := e.ObjectNew.(*qsv1a1.QuarksSecret)
 			o := e.ObjectOld.(*qsv1a1.QuarksSecret)
 
-			if reconcileForGenerated(n.Status, o.Status) {
+			if reconcileForGenerated(o.Status, n.Status) {
 				if n.Status.IsCopied() == o.Status.IsCopied() {
 					ctxlog.NewPredicateEvent(e.ObjectNew).Debug(
 						ctx, e.MetaNew, "qsv1a1.QuarksSecret",
