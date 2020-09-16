@@ -111,7 +111,7 @@ var _ = Describe("QuarksCopies", func() {
 		It("should copy the generated secret to the copy namespace if qsec is found", func() {
 			By("Checking the quarkssecret status")
 			checkStatus()
-			//checkCopyStatus()
+			checkCopyStatus()
 
 			By("Checking the secret in source namespace")
 			secret, err := env.GetSecret(env.Namespace, "generated-secret")
@@ -136,6 +136,7 @@ var _ = Describe("QuarksCopies", func() {
 		It("should copy the rotated generated secret to the copy namespace if qsec is found", func() {
 			By("Checking the quarkssecret status")
 			checkStatus()
+			checkCopyStatus()
 
 			secret, err := env.CollectSecret(env.Namespace, "generated-secret")
 			Expect(err).NotTo(HaveOccurred())
