@@ -124,7 +124,7 @@ var (
 		{
 			Name:     "copied",
 			Type:     "boolean",
-			JSONPath: ".status.completed",
+			JSONPath: ".status.copied",
 		},
 		{
 			Name:     "generated",
