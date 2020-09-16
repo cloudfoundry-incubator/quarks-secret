@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"bytes"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -22,6 +23,17 @@ var _ = Describe("QuarksSecretRotation", func() {
 	const (
 		qsecName = "test.qsec"
 	)
+
+	checkStatus := func() {
+		Eventually(func() bool {
+			qsec, err := env.GetQuarksSecret(env.Namespace, qsecName)
+			Expect(err).NotTo(HaveOccurred())
+			if qsec.Status.Generated != nil {
+				return *qsec.Status.Generated
+			}
+			return false
+		}, 10*time.Second).Should(Equal(true))
+	}
 
 	JustBeforeEach(func() {
 		By("Creating the quarks secret", func() {
@@ -75,6 +87,8 @@ var _ = Describe("QuarksSecretRotation", func() {
 		})
 
 		It("modifies quarks secret and updates certificate and key", func() {
+			checkStatus()
+
 			err := env.WaitForSecretChange(env.Namespace, qsec.Spec.SecretName, func(s corev1.Secret) bool {
 				return !bytes.Equal(oldSecret.Data["certificate"], s.Data["certificate"]) &&
 					!bytes.Equal(oldSecret.Data["private_key"], s.Data["private_key"])
@@ -146,6 +160,8 @@ var _ = Describe("QuarksSecretRotation", func() {
 		})
 
 		It("modifies quarks secret and the secret is updated", func() {
+			checkStatus()
+
 			err := env.WaitForSecretChange(env.Namespace, qsec.Spec.SecretName, func(s corev1.Secret) bool {
 				return !bytes.Equal(oldSecret.Data["password"], s.Data["password"]) &&
 					bytes.Equal(oldSecret.Data["username"], s.Data["username"])
