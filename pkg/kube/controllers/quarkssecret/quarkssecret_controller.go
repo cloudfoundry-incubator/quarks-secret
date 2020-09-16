@@ -64,7 +64,7 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 			n := e.ObjectNew.(*qsv1a1.QuarksSecret)
 			o := e.ObjectOld.(*qsv1a1.QuarksSecret)
 
-			if reconcileForGenerated(o.Status, n.Status) || !reflect.DeepEqual(o.Spec, n.Spec) {
+			if o.Status.IsGenerated() || !reflect.DeepEqual(o.Spec, n.Spec) {
 				if n.Status.IsCopied() == o.Status.IsCopied() {
 					ctxlog.NewPredicateEvent(e.ObjectNew).Debug(
 						ctx, e.MetaNew, "qsv1a1.QuarksSecret",
@@ -82,33 +82,6 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 	}
 
 	return nil
-}
-
-// reconcileForGenerated determines if we should reconcile, depending on the
-// old and new generated status
-// | old   | new   | reconcile? |
-// | ----- | ----- | ---------- |
-// | true  | true  | false      |
-// | false | true  | true       |
-// | nil   | true  | true       |
-// | true  | false | false      |
-// | false | false | true       |
-// | nil   | false | true       |
-// | true  | nil   | false      |
-// | false | nil   | true       |
-// | nil   | nil   | true       |
-func reconcileForGenerated(o, n qsv1a1.QuarksSecretStatus) bool {
-	var resultN bool
-	if n.Generated != nil {
-		// new generated is set
-		resultN = !*n.Generated
-	}
-	if o.Generated != nil && *o.Generated {
-		// old generated is true
-		return false
-	}
-	// old is either nil or false
-	return resultN || true
 }
 
 // listSecrets gets all Secrets owned by the QuarksSecret
