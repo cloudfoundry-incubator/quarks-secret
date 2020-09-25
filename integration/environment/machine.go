@@ -5,6 +5,7 @@ package environment
 
 import (
 	"context"
+	"time"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -29,10 +30,10 @@ type Machine struct {
 }
 
 // GetQuarksSecret gets a QuarksSecret custom resource
-func (m *Machine) GetQuarksSecret(namespace string, name string) (*qsv1a1.QuarksSecret, error) {
+func (m *Machine) GetQuarksSecret(namespace string, name string) (qsv1a1.QuarksSecret, error) {
 	client := m.VersionedClientset.QuarkssecretV1alpha1().QuarksSecrets(namespace)
 	d, err := client.Get(context.Background(), name, metav1.GetOptions{})
-	return d, err
+	return *d, err
 }
 
 // CreateQuarksSecret creates a QuarksSecret custom resource and returns a function to delete it
@@ -48,6 +49,13 @@ func (m *Machine) CreateQuarksSecret(namespace string, qs qsv1a1.QuarksSecret) (
 	}, err
 }
 
+// UpdateQuarksSecret deletes updates a QuarksSecret custom resource
+func (m *Machine) UpdateQuarksSecret(namespace string, qs qsv1a1.QuarksSecret) (qsv1a1.QuarksSecret, error) {
+	client := m.VersionedClientset.QuarkssecretV1alpha1().QuarksSecrets(namespace)
+	qsec, err := client.Update(context.Background(), &qs, metav1.UpdateOptions{})
+	return *qsec, err
+}
+
 // DeleteQuarksSecret deletes an QuarksSecret custom resource
 func (m *Machine) DeleteQuarksSecret(namespace string, name string) error {
 	client := m.VersionedClientset.QuarkssecretV1alpha1().QuarksSecrets(namespace)
@@ -58,8 +66,8 @@ func (m *Machine) DeleteQuarksSecret(namespace string, name string) error {
 type QuarksSecretChangedFunc func(qsv1a1.QuarksSecret) bool
 
 // WaitForQuarksSecretChange waits for the quarks secret to fulfill the change func
-func (m *Machine) WaitForQuarksSecretChange(namespace string, name string, changed QuarksSecretChangedFunc) error {
-	return wait.PollImmediate(m.PollInterval, m.PollTimeout, func() (bool, error) {
+func (m *Machine) WaitForQuarksSecretChange(namespace string, name string, timeout time.Duration, changed QuarksSecretChangedFunc) error {
+	return wait.PollImmediate(m.PollInterval, timeout, func() (bool, error) {
 		client := m.VersionedClientset.QuarkssecretV1alpha1().QuarksSecrets(namespace)
 		qs, err := client.Get(context.Background(), name, metav1.GetOptions{})
 		if err != nil {

@@ -64,14 +64,14 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 			n := e.ObjectNew.(*qsv1a1.QuarksSecret)
 			o := e.ObjectOld.(*qsv1a1.QuarksSecret)
 
-			if o.Status.IsGenerated() || !reflect.DeepEqual(o.Spec, n.Spec) {
-				if n.Status.IsCopied() == o.Status.IsCopied() {
-					ctxlog.NewPredicateEvent(e.ObjectNew).Debug(
-						ctx, e.MetaNew, "qsv1a1.QuarksSecret",
-						fmt.Sprintf("Update predicate passed for '%s/%s'.", e.MetaNew.GetNamespace(), e.MetaNew.GetName()),
-					)
-					return true
-				}
+			// reconcile if it was already generated and the spec changed
+			// reconcile if it was already generated and controller requested update
+			if o.Status.IsGenerated() && (!reflect.DeepEqual(o.Spec, n.Spec) || n.Status.NotGenerated()) {
+				ctxlog.NewPredicateEvent(e.ObjectNew).Debug(
+					ctx, e.MetaNew, "qsv1a1.QuarksSecret",
+					fmt.Sprintf("Update predicate passed for '%s/%s'.", e.MetaNew.GetNamespace(), e.MetaNew.GetName()),
+				)
+				return true
 			}
 			return false
 		},
