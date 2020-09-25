@@ -36,6 +36,7 @@ jobs:
         PROJECT: quarks-secret
         GITHUB_ACTION_BRANCH: ${{ steps.prepare_branch_env.outputs.branch }}
         GH_PASSWORD: ${{ secrets.GH_PASSWORD }}
+        PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         DOCKER_USERNAME: cfcontainerization
         GOPROXY: "https://proxy.golang.org"
