@@ -35,7 +35,9 @@ jobs:
       env:
         PROJECT: quarks-secret
         GITHUB_ACTION_BRANCH: ${{ steps.prepare_branch_env.outputs.branch }}
+        # for git push to project and helm repo
         GH_PASSWORD: ${{ secrets.GH_PASSWORD }}
+        # for docker push to ghcr.io
         PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         DOCKER_USERNAME: cfcontainerization
