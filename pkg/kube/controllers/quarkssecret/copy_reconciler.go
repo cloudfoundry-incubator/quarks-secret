@@ -18,6 +18,7 @@ import (
 
 	"code.cloudfoundry.org/quarks-secret/pkg/credsgen"
 	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
+	"code.cloudfoundry.org/quarks-secret/pkg/kube/util/mutate"
 	"code.cloudfoundry.org/quarks-utils/pkg/config"
 	"code.cloudfoundry.org/quarks-utils/pkg/ctxlog"
 	"code.cloudfoundry.org/quarks-utils/pkg/pointers"
@@ -228,7 +229,7 @@ func (r *ReconcileCopy) createUpdateCopySecret(ctx context.Context, targetSecret
 		}
 	}
 
-	op, err := controllerutil.CreateOrUpdate(ctx, r.client, targetSecret, func() error { return nil })
+	op, err := controllerutil.CreateOrUpdate(ctx, r.client, targetSecret, mutate.SecretMutateFn(targetSecret))
 	if err != nil {
 		return errors.Wrapf(err, "could not create or update target secret '%s/%s'", targetSecret.Namespace, targetSecret.GetName())
 	}

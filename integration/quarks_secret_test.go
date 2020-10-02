@@ -1,9 +1,6 @@
 package integration_test
 
 import (
-	"strconv"
-	"time"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -182,75 +179,6 @@ var _ = Describe("QuarksSecret", func() {
 			Expect(string(secret.Data["username"])).To(Equal("some-passed-in-username"))
 
 			deleteQuarksSecret()
-		})
-	})
-
-	When("updating the qsec", func() {
-		var oldSecret *corev1.Secret
-
-		BeforeEach(func() {
-			qs = env.DefaultQuarksSecret(qsName)
-			secretName = qs.Spec.SecretName
-		})
-
-		JustBeforeEach(func() {
-			var err error
-			oldSecret, err = env.CollectSecret(env.Namespace, secretName)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Getting the current version")
-			qs, err = env.GetQuarksSecret(env.Namespace, qs.Name)
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		incResourceVersion := func(v string) string {
-			n, err := strconv.Atoi(v)
-			Expect(err).NotTo(HaveOccurred())
-			n++
-			return strconv.Itoa(n)
-		}
-
-		When("updating the spec", func() {
-			JustBeforeEach(func() {
-				var err error
-				By("Updating the quarks secret")
-				qs.Spec.SecretLabels = map[string]string{"sec": "label"}
-				qs, err = env.UpdateQuarksSecret(env.Namespace, qs)
-				Expect(err).NotTo(HaveOccurred())
-
-				old := incResourceVersion(qs.GetResourceVersion())
-				err = env.WaitForQuarksSecretChange(env.Namespace, qs.Name, 10*time.Second, func(qsec qsv1a1.QuarksSecret) bool {
-					return old < qsec.GetResourceVersion()
-				})
-				Expect(err).NotTo(HaveOccurred())
-
-			})
-
-			It("updates the secret", func() {
-				secret, err := env.CollectSecret(env.Namespace, secretName)
-				Expect(err).NotTo(HaveOccurred())
-
-				Expect(secret.Data["password"]).NotTo(Equal(oldSecret.Data["password"]))
-				qs, err = env.GetQuarksSecret(env.Namespace, qs.Name)
-				Expect(err).NotTo(HaveOccurred())
-			})
-		})
-
-		When("updating a label", func() {
-			JustBeforeEach(func() {
-				var err error
-				qs.Labels = map[string]string{"qsec": "label"}
-				qs, err = env.UpdateQuarksSecret(env.Namespace, qs)
-				Expect(err).NotTo(HaveOccurred())
-			})
-
-			It("does not update the secret", func() {
-				old := incResourceVersion(qs.GetResourceVersion())
-				err := env.WaitForQuarksSecretChange(env.Namespace, qs.Name, 10*time.Second, func(qsec qsv1a1.QuarksSecret) bool {
-					return old < qsec.GetResourceVersion()
-				})
-				Expect(err).To(HaveOccurred(), "check for update should fail")
-			})
 		})
 	})
 })

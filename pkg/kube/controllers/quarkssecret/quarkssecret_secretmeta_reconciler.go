@@ -94,6 +94,7 @@ func (r *ReconcileQuarksSecretSecretMeta) Reconcile(request reconcile.Request) (
 		if err != nil {
 			return reconcile.Result{}, err
 		}
+		ctxlog.Infof(ctx, "Updated secret '%s'/'%s'", secret.Name, secret.Namespace)
 	}
 
 	return reconcile.Result{}, nil

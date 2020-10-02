@@ -3,6 +3,7 @@ package integration_test
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -170,6 +171,59 @@ var _ = Describe("QuarksCopies", func() {
 				"quarks.cloudfoundry.org/secret-kind": "generated",
 			}))
 			Expect(secret.StringData["password"]).NotTo(BeNil())
+		})
+
+		It("should copy the updated generated secret to the copy namespace when qsec is found", func() {
+			By("Checking the quarkssecret status")
+			checkStatus()
+			checkCopyStatus()
+
+			secret, err := env.CollectSecret(env.Namespace, sourceSecret)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(secret.Labels).To(Equal(map[string]string{
+				"quarks.cloudfoundry.org/secret-kind": "generated",
+			}))
+			oldSecretData := secret.Data["password"]
+
+			By("Add labels to `SecretLabels` spec of quarkssecret")
+			qs, err := env.GetQuarksSecret(env.Namespace, qsecName)
+			Expect(err).NotTo(HaveOccurred())
+			qs.Spec.SecretLabels = map[string]string{
+				"LabelKeyv2": "LabelValuev2",
+			}
+			qs, err = env.UpdateQuarksSecret(env.Namespace, qs)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(qs).NotTo(Equal(nil))
+
+			Eventually(func() bool {
+				secret, err = env.CollectSecret(env.Namespace, qs.Spec.SecretName)
+				Expect(err).NotTo(HaveOccurred())
+				return reflect.DeepEqual(secret.Labels, map[string]string{
+					"LabelKeyv2":                          "LabelValuev2",
+					"quarks.cloudfoundry.org/secret-kind": "generated",
+				})
+			}, 10*time.Second).Should(Equal(true))
+			secret, err = env.CollectSecret(env.Namespace, qs.Spec.SecretName)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(secret.Data["password"]).To(MatchRegexp("^\\w{64}$"))
+			Expect(oldSecretData).To(Equal(secret.Data["password"]))
+
+			By("Checking the quarkssecret status")
+			checkCopyStatus()
+
+			By("Check for the updated copy secret")
+			Eventually(func() bool {
+				secret, err = env.CollectSecret(qs.Spec.Copies[0].Namespace, qs.Spec.Copies[0].Name)
+				Expect(err).NotTo(HaveOccurred())
+				return reflect.DeepEqual(secret.Labels, map[string]string{
+					"LabelKeyv2":                          "LabelValuev2",
+					"quarks.cloudfoundry.org/secret-kind": "generated",
+				})
+			}, 10*time.Second).Should(Equal(true))
+
+			secret, err = env.CollectSecret(qs.Spec.Copies[0].Namespace, qs.Spec.Copies[0].Name)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(oldSecretData).To(Equal(secret.Data["password"]))
 		})
 	})
 
