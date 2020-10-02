@@ -19,6 +19,7 @@ var addToManagerFuncs = []func(context.Context, *config.Config, manager.Manager)
 	quarkssecret.AddCopy,
 	quarkssecret.AddQuarksSecret,
 	quarkssecret.AddSecretRotation,
+	quarkssecret.AddQuarksSecretSecretMeta,
 }
 
 var addToSchemes = runtime.SchemeBuilder{
