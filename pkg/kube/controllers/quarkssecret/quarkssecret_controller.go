@@ -64,14 +64,29 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 			n := e.ObjectNew.(*qsv1a1.QuarksSecret)
 			o := e.ObjectOld.(*qsv1a1.QuarksSecret)
 
-			if o.Status.IsGenerated() || !reflect.DeepEqual(o.Spec, n.Spec) {
-				if n.Status.IsCopied() == o.Status.IsCopied() {
-					ctxlog.NewPredicateEvent(e.ObjectNew).Debug(
-						ctx, e.MetaNew, "qsv1a1.QuarksSecret",
-						fmt.Sprintf("Update predicate passed for '%s/%s'.", e.MetaNew.GetNamespace(), e.MetaNew.GetName()),
-					)
-					return true
+			// reconcile if it was already generated and the spec changed except for `SecretLabels` & `SecretAnnotations`
+			if o.Status.IsGenerated() {
+				for _, key := range []string{"Type", "Request", "SecretName", "Copies"} {
+					old := reflect.ValueOf(o.Spec).FieldByName(key)
+					new := reflect.ValueOf(n.Spec).FieldByName(key)
+					if !reflect.DeepEqual(old.Interface(), new.Interface()) {
+						ctxlog.NewPredicateEvent(e.ObjectNew).Debug(
+							ctx, e.MetaNew, "qsv1a1.QuarksSecret",
+							fmt.Sprintf("Update predicate passed for '%s/%s' :",
+								e.MetaNew.GetNamespace(), e.MetaNew.GetName()),
+						)
+						return true
+					}
 				}
+			}
+
+			// reconcile if it was already generated and controller requested update
+			if n.Status.NotGenerated() {
+				ctxlog.NewPredicateEvent(e.ObjectNew).Debug(
+					ctx, e.MetaNew, "qsv1a1.QuarksSecret",
+					fmt.Sprintf("Update predicate passed for '%s/%s': new object is not generated", e.MetaNew.GetNamespace(), e.MetaNew.GetName()),
+				)
+				return true
 			}
 			return false
 		},
