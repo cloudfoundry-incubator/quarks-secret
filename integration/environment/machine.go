@@ -48,6 +48,19 @@ func (m *Machine) CreateQuarksSecret(namespace string, qs qsv1a1.QuarksSecret) (
 	}, err
 }
 
+// UpdateQuarksSecret updates a QuarksSecret custom resource and returns a function to delete it
+func (m *Machine) UpdateQuarksSecret(namespace string, qs qsv1a1.QuarksSecret) (*qsv1a1.QuarksSecret, machine.TearDownFunc, error) {
+	client := m.VersionedClientset.QuarkssecretV1alpha1().QuarksSecrets(namespace)
+	d, err := client.Update(context.Background(), &qs, metav1.UpdateOptions{})
+	return d, func() error {
+		err := client.Delete(context.Background(), qs.GetName(), metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
+		return nil
+	}, err
+}
+
 // DeleteQuarksSecret deletes an QuarksSecret custom resource
 func (m *Machine) DeleteQuarksSecret(namespace string, name string) error {
 	client := m.VersionedClientset.QuarkssecretV1alpha1().QuarksSecrets(namespace)
