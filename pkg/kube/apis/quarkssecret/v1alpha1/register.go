@@ -122,6 +122,11 @@ var (
 	// QuarksSecretAdditionalPrinterColumns are used by `kubectl get`
 	QuarksSecretAdditionalPrinterColumns = []extv1.CustomResourceColumnDefinition{
 		{
+			Name:     "type",
+			Type:     "string",
+			JSONPath: ".spec.type",
+		},
+		{
 			Name:     "copied",
 			Type:     "boolean",
 			JSONPath: ".status.copied",
@@ -130,6 +135,16 @@ var (
 			Name:     "generated",
 			Type:     "boolean",
 			JSONPath: ".status.generated",
+		},
+		{
+			Name:     "age",
+			Type:     "date",
+			JSONPath: ".metadata.creationTimestamp",
+		},
+		{
+			Name:     "reconcile",
+			Type:     "date",
+			JSONPath: ".status.lastReconcile",
 		},
 	}
 	// QuarksSecretResourceName is the resource name of QuarksSecret
