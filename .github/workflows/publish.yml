@@ -2,13 +2,20 @@ name: quarks-secret-publish
 
 on:
   push:
+    # don't run if pushing tags
     branches-ignore:
     - refs/tags/*
+
+env:
+  PROJECT: quarks-secret
+  DOCKER_IMAGE_ORG: ghcr.io/cloudfoundry-incubator
+  DOCKER_IMAGE_REPOSITORY: quarks-secret
 
 jobs:
   publish:
     runs-on: ubuntu-latest
 
+    # don't run 'publish' on forks
     if: github.repository == 'cloudfoundry-incubator/quarks-secret'
     steps:
     - uses: azure/setup-helm@v1
@@ -21,25 +28,57 @@ jobs:
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-
-    - name: Prepare GITHUB_ACTION_BRANCH env
-      shell: bash
-      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-      id: prepare_branch_env
+
     - name: Install shared tools
       run: |
         bin/tools
-    - name: Publish Helm Chart
+    - name: Prepare ARTIFACT_VERSION env
+      shell: bash
       run: |
         git fetch --unshallow
-        bash ./bin/deploy
-      env:
-        PROJECT: quarks-secret
-        GITHUB_ACTION_BRANCH: ${{ steps.prepare_branch_env.outputs.branch }}
-        # for git push to project and helm repo
-        GH_PASSWORD: ${{ secrets.GH_PASSWORD }}
-        # for docker push to ghcr.io
-        PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        DOCKER_USERNAME: cfcontainerization
-        GOPROXY: "https://proxy.golang.org"
+        GITHUB_ACTION_BRANCH=${GITHUB_REF#refs/heads/}
+        . bin/include/versioning
+        echo "##[set-output name=version;]$(echo $ARTIFACT_VERSION)"
+      id: prepare_version_env
 
+    - name: Vendor go mod dependencies
+      run: go mod vendor
+    - name: Publish Docker Image
+      uses: whoan/docker-build-with-cache-action@v5
+      with:
+        username: cfcontainerizationbot
+        password: "${{ secrets.PERSONAL_ACCESS_TOKEN }}"
+        registry: "${{ env.DOCKER_IMAGE_ORG }}"
+        image_name: "${{ env.DOCKER_IMAGE_REPOSITORY }}"
+        image_tag: "${{ steps.prepare_version_env.outputs.version }}"
+
+    - name: Build Helm Chart
+      run: |
+        echo "Publish Helm Chart for $ARTIFACT_VERSION"
+        cp -r "deploy/helm" "helm"
+        perl -pi -e "s|repository: .*|repository: $DOCKER_IMAGE_REPOSITORY|g" "helm/$PROJECT/values.yaml"
+        perl -pi -e "s|org: .*|org: $DOCKER_IMAGE_ORG|g" "helm/$PROJECT/values.yaml"
+        perl -pi -e "s|tag: .*|tag: $ARTIFACT_VERSION|g" "helm/$PROJECT/values.yaml"
+
+        # helm compatible version string
+        version=$(echo "$ARTIFACT_VERSION" | sed 's/^v//')
+        helm package "helm/$PROJECT" \
+          --app-version "$version" \
+          --version "$version" \
+          --destination "helm"
+      env:
+        ARTIFACT_VERSION: "${{ steps.prepare_version_env.outputs.version }}"
+
+    - name: Publish Helm Chart
+      run: |
+        base_url="https://CFContainerizationBot:$GH_PASSWORD@github.com/cloudfoundry-incubator"
+        git clone "$base_url/quarks-helm.git" ./updated/ && \
+          bin/publish-helm-repo
+
+        echo "Tag Github Commit with $ARTIFACT_VERSION"
+        git tag -a "$ARTIFACT_VERSION" -m "tag $ARTIFACT_VERSION"
+        git push --quiet "$base_url/$PROJECT.git" "$ARTIFACT_VERSION"
+      env:
+        # for git push to helm repo
+        GH_PASSWORD: "${{ secrets.GH_PASSWORD }}"
+        ARTIFACT_VERSION: "${{ steps.prepare_version_env.outputs.version }}"
