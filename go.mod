@@ -11,8 +11,8 @@ require (
 	github.com/onsi/gomega v1.10.1
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/afero v1.2.2
-	github.com/spf13/cobra v1.0.0
-	github.com/spf13/viper v1.6.1
+	github.com/spf13/cobra v1.1.1
+	github.com/spf13/viper v1.7.0
 	go.uber.org/zap v1.13.0
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	helm.sh/helm/v3 v3.3.0
