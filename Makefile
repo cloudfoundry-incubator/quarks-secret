@@ -29,7 +29,7 @@ gen-kube: tools
 
 gen-command-docs:
 	rm -f docs/commands/*
-	go run cmd/docs/gen-command-docs.go
+	go run cmd/docs/gen-command-docs.go docs/commands
 
 gen-fakes:
 	bin/gen-fakes

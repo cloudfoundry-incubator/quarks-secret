@@ -1,4 +1,4 @@
-name: quarks-secret-publish
+name: publish
 
 on:
   push:
@@ -20,8 +20,8 @@ jobs:
     steps:
     - uses: azure/setup-helm@v1
       with:
-        version: v3.0.0
-    - uses: actions/checkout@v2
+        version: v3.3.4
+    - uses: actions/checkout@master
     - uses: actions/cache@v1
       with:
         path: ~/go/pkg/mod
@@ -30,8 +30,13 @@ jobs:
           ${{ runner.os }}-go-
 
     - name: Install shared tools
+      run: bin/tools
+
+    - name: Setup git
       run: |
-        bin/tools
+        git config --global user.name "CFContainerizationBot"
+        git config --global user.email "cf-containerization@cloudfoundry.org"
+
     - name: Prepare ARTIFACT_VERSION env
       shell: bash
       run: |
@@ -43,6 +48,7 @@ jobs:
 
     - name: Vendor go mod dependencies
       run: go mod vendor
+
     - name: Publish Docker Image
       uses: whoan/docker-build-with-cache-action@v5
       with:
@@ -69,16 +75,21 @@ jobs:
       env:
         ARTIFACT_VERSION: "${{ steps.prepare_version_env.outputs.version }}"
 
+    - name: Checkout helm chart repo
+      uses: actions/checkout@master
+      with:
+        repository: cloudfoundry-incubator/quarks-helm
+        ref: refs/heads/master
+        path: updated
+        # github personal access token, for pushing commits
+        token: ${{ secrets.GH_PASSWORD }}
+
     - name: Publish Helm Chart
       run: |
-        base_url="https://CFContainerizationBot:$GH_PASSWORD@github.com/cloudfoundry-incubator"
-        git clone "$base_url/quarks-helm.git" ./updated/ && \
-          bin/publish-helm-repo
+        bin/publish-helm-repo
 
         echo "Tag Github Commit with $ARTIFACT_VERSION"
         git tag -a "$ARTIFACT_VERSION" -m "tag $ARTIFACT_VERSION"
-        git push --quiet "$base_url/$PROJECT.git" "$ARTIFACT_VERSION"
+        git push origin "$ARTIFACT_VERSION"
       env:
-        # for git push to helm repo
-        GH_PASSWORD: "${{ secrets.GH_PASSWORD }}"
         ARTIFACT_VERSION: "${{ steps.prepare_version_env.outputs.version }}"
