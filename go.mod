@@ -6,7 +6,7 @@ require (
 	code.cloudfoundry.org/quarks-utils v0.0.2-0.20201027114038-8aab73d224e4
 	github.com/cloudflare/cfssl v1.4.1
 	github.com/dchest/uniuri v0.0.0-20200228104902-7aecb25e1fe5
-	github.com/go-logr/logr v0.1.0
+	github.com/go-logr/logr v0.2.0
 	github.com/onsi/ginkgo v1.14.0
 	github.com/onsi/gomega v1.10.1
 	github.com/pkg/errors v0.9.1
@@ -18,7 +18,7 @@ require (
 	helm.sh/helm/v3 v3.3.0
 	k8s.io/api v0.18.9
 	k8s.io/apiextensions-apiserver v0.18.9
-	k8s.io/apimachinery v0.18.9
+	k8s.io/apimachinery v0.20.0
 	k8s.io/client-go v0.18.9
 	sigs.k8s.io/controller-runtime v0.6.3
 )
