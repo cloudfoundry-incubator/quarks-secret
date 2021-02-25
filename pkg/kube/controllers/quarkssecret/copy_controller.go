@@ -80,9 +80,9 @@ func AddCopy(ctx context.Context, config *config.Config, mgr manager.Manager) er
 			return shouldProcessReconcile
 		},
 	}
-	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestsFromMapFunc{
-		ToRequests: handler.ToRequestsFunc(func(a handler.MapObject) []reconcile.Request {
-			secret := a.Object.(*corev1.Secret)
+	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, handler.EnqueueRequestsFromMapFunc(
+		func(a crc.Object) []reconcile.Request {
+			secret := a.(*corev1.Secret)
 
 			if skip.Reconciles(ctx, mgr.GetClient(), secret) {
 				return []reconcile.Request{}
@@ -97,8 +97,7 @@ func AddCopy(ctx context.Context, config *config.Config, mgr manager.Manager) er
 			}
 
 			return reconciles
-		}),
-	}, nsPred, p)
+		}), nsPred, p)
 	if err != nil {
 		return errors.Wrapf(err, "Watching user defined secrets failed in copy controller.")
 	}

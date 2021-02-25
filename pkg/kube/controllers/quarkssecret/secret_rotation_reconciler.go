@@ -40,7 +40,7 @@ type ReconcileSecretRotation struct {
 
 // Reconcile reads that state of the cluster and trigger secret rotation for
 // all listed deployments.
-func (r *ReconcileSecretRotation) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileSecretRotation) Reconcile(_ context.Context, request reconcile.Request) (reconcile.Result, error) {
 	instance := &corev1.ConfigMap{}
 
 	// Set the ctx to be Background, as the top-level context for incoming requests.

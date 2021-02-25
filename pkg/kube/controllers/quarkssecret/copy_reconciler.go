@@ -48,7 +48,7 @@ type ReconcileCopy struct {
 
 // Reconcile reads sets the copied field in status spec to false and copies the secrets from source namespace
 // to the target namespaces.
-func (r *ReconcileCopy) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileCopy) Reconcile(_ context.Context, request reconcile.Request) (reconcile.Result, error) {
 	qsec := &qsv1a1.QuarksSecret{}
 
 	// Set the ctx to be Background, as the top-level context for incoming requests.
