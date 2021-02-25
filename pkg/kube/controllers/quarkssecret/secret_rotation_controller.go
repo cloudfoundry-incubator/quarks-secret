@@ -43,8 +43,8 @@ func AddSecretRotation(ctx context.Context, config *config.Config, mgr manager.M
 			_, found := labels[qsv1a1.LabelSecretRotationTrigger]
 			if found {
 				ctxlog.NewPredicateEvent(e.Object).Debug(
-					ctx, e.Meta, "corev1.ConfigMap",
-					fmt.Sprintf("Create predicate passed for '%s/%s'", e.Meta.GetNamespace(), e.Meta.GetName()),
+					ctx, e.Object, "corev1.ConfigMap",
+					fmt.Sprintf("Create predicate passed for '%s/%s'", e.Object.GetNamespace(), e.Object.GetName()),
 				)
 				return true
 			}

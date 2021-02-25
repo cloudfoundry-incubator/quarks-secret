@@ -90,7 +90,7 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 		ctx = ctxlog.NewParentContext(log)
 
 		client = &cfakes.FakeClient{}
-		client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+		client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 			switch object := object.(type) {
 			case *certv1.CertificateSigningRequest:
 				csr.DeepCopyInto(object)
@@ -146,7 +146,7 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 			})
 		})
 		It("approves CSR", func() {
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reconcile.Result{}).To(Equal(result))
 		})
@@ -154,12 +154,12 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 		It("skips if the resource was not found", func() {
 			client.GetReturns(apierrors.NewNotFound(schema.GroupResource{}, "not found"))
 
-			_, err := reconciler.Reconcile(request)
+			_, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("handles an error when getting certificatesigningrequest", func() {
-			client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+			client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 				switch object.(type) {
 				case *certv1.CertificateSigningRequest:
 					return apierrors.NewBadRequest("fake-error")
@@ -167,7 +167,7 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 				return apierrors.NewNotFound(schema.GroupResource{}, "not found")
 			})
 
-			_, err := reconciler.Reconcile(request)
+			_, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("Error reading CSR"))
 		})
@@ -181,7 +181,7 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 				return true, &certv1.CertificateSigningRequest{}, nil
 			})
 
-			_, err := reconciler.Reconcile(request)
+			_, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("could not get CSR"))
 		})
@@ -200,7 +200,7 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 				return true, &certv1.CertificateSigningRequest{}, apierrors.NewNotFound(schema.GroupResource{}, "not found")
 			})
 
-			_, err := reconciler.Reconcile(request)
+			_, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -209,7 +209,7 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 				return true, &certv1.CertificateSigningRequest{}, apierrors.NewBadRequest("fake-error")
 			})
 
-			_, err := reconciler.Reconcile(request)
+			_, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("could not update approval of CSR"))
 		})
@@ -228,7 +228,7 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 				Certificate: []byte("fake-issued-certificate"),
 			}
 
-			client.ListCalls(func(context context.Context, object runtime.Object, _ ...crc.ListOption) error {
+			client.ListCalls(func(context context.Context, object crc.ObjectList, _ ...crc.ListOption) error {
 				switch object := object.(type) {
 				case *corev1.SecretList:
 					object.Items = append(object.Items, corev1.Secret{
@@ -241,7 +241,7 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 				return nil
 			})
 
-			client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+			client.CreateCalls(func(context context.Context, object crc.Object, _ ...crc.CreateOption) error {
 				switch object := object.(type) {
 				case *corev1.Secret:
 					Expect(object.Name).To(Equal("fake-cert"))
@@ -255,7 +255,7 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 				return apierrors.NewBadRequest("fake-error")
 			})
 
-			client.DeleteCalls(func(context context.Context, object runtime.Object, opts ...crc.DeleteOption) error {
+			client.DeleteCalls(func(context context.Context, object crc.Object, opts ...crc.DeleteOption) error {
 				switch object := object.(type) {
 				case *corev1.Secret:
 					Expect(object.GetName()).To(Equal(names.CsrPrivateKeySecretName(csr.Name)))
@@ -266,7 +266,7 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 		})
 
 		It("creates cert secret and cleans up resources", func() {
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reconcile.Result{}).To(Equal(result))
 			Expect(client.GetCallCount()).To(Equal(4))
@@ -277,7 +277,7 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 		It("Skips reconcile when getting nil annotations", func() {
 			csr.Annotations = nil
 
-			_, err := reconciler.Reconcile(request)
+			_, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client.GetCallCount()).To(Equal(1))
 			Expect(client.CreateCallCount()).To(Equal(0))
@@ -287,7 +287,7 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 		It("Skips reconcile when getting cert secret name", func() {
 			csr.Annotations = map[string]string{}
 
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reconcile.Result{}).To(Equal(result))
 			Expect(client.GetCallCount()).To(Equal(1))
@@ -300,7 +300,7 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 				qsv1a1.AnnotationCertSecretName: "fake-cert",
 			}
 
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reconcile.Result{}).To(Equal(result))
 			Expect(client.GetCallCount()).To(Equal(1))
@@ -309,7 +309,7 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 		})
 
 		It("handles an error when getting private key secret", func() {
-			client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+			client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 				switch object := object.(type) {
 				case *certv1.CertificateSigningRequest:
 					csr.DeepCopyInto(object)
@@ -323,17 +323,17 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 				return apierrors.NewNotFound(schema.GroupResource{}, "not found")
 			})
 
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result.Requeue).To(BeTrue())
 		})
 
 		It("handles an error when creating certificate secret", func() {
-			client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+			client.CreateCalls(func(context context.Context, object crc.Object, _ ...crc.CreateOption) error {
 				return apierrors.NewBadRequest("fake-error")
 			})
 
-			_, err := reconciler.Reconcile(request)
+			_, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("could not create or update secret"))
 			Expect(client.GetCallCount()).To(Equal(4))
@@ -342,11 +342,11 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 		})
 
 		It("handles an error when deleting private key secret", func() {
-			client.DeleteCalls(func(context context.Context, object runtime.Object, opts ...crc.DeleteOption) error {
+			client.DeleteCalls(func(context context.Context, object crc.Object, opts ...crc.DeleteOption) error {
 				return apierrors.NewBadRequest("fake-error")
 			})
 
-			_, err := reconciler.Reconcile(request)
+			_, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("could not delete secret"))
 			Expect(client.GetCallCount()).To(Equal(4))

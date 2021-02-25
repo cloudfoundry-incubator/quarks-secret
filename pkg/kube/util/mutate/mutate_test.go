@@ -9,9 +9,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	crc "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	qsv1a1 "code.cloudfoundry.org/quarks-secret/pkg/kube/apis/quarkssecret/v1alpha1"
@@ -49,7 +49,7 @@ var _ = Describe("Mutate", func() {
 
 		Context("when the quarksSecret is not found", func() {
 			It("creates the quarksSecret", func() {
-				client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+				client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 					return apierrors.NewNotFound(schema.GroupResource{}, nn.Name)
 				})
 
@@ -61,7 +61,7 @@ var _ = Describe("Mutate", func() {
 
 		Context("when the quarksSecret is found", func() {
 			It("updates the quarksSecret when spec is changed", func() {
-				client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+				client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 					switch object := object.(type) {
 					case *qsv1a1.QuarksSecret:
 						existing := &qsv1a1.QuarksSecret{
@@ -87,7 +87,7 @@ var _ = Describe("Mutate", func() {
 			})
 
 			It("does not update the quarksSecret when nothing is changed", func() {
-				client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+				client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 					switch object := object.(type) {
 					case *qsv1a1.QuarksSecret:
 						qSec.DeepCopyInto(object)
@@ -123,7 +123,7 @@ var _ = Describe("Mutate", func() {
 
 		Context("when the secret is not found", func() {
 			It("creates the secret", func() {
-				client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+				client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 					return apierrors.NewNotFound(schema.GroupResource{}, nn.Name)
 				})
 
@@ -135,7 +135,7 @@ var _ = Describe("Mutate", func() {
 
 		Context("when the secret is found", func() {
 			It("updates the secret when secret data is changed", func() {
-				client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+				client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 					switch object := object.(type) {
 					case *corev1.Secret:
 						existing := &corev1.Secret{
@@ -160,7 +160,7 @@ var _ = Describe("Mutate", func() {
 			})
 
 			It("does not update the secret when secret data is not changed", func() {
-				client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+				client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 					switch object := object.(type) {
 					case *corev1.Secret:
 						existing := &corev1.Secret{

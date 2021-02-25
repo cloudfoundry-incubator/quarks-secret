@@ -104,7 +104,7 @@ var _ = Describe("ReconcileCopy", func() {
 			},
 		}
 
-		client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+		client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 			switch object := object.(type) {
 			case *qsv1a1.QuarksSecret:
 				if nn.Namespace == defaultNamespace {
@@ -132,7 +132,7 @@ var _ = Describe("ReconcileCopy", func() {
 
 	When("the source secret is not found", func() {
 		It("should return an error", func() {
-			client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+			client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 				switch object := object.(type) {
 				case *qsv1a1.QuarksSecret:
 					if nn.Namespace == defaultNamespace {
@@ -148,7 +148,7 @@ var _ = Describe("ReconcileCopy", func() {
 				return nil
 			})
 
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("not found"))
 			Expect(reconcile.Result{}).To(Equal(result))
@@ -157,7 +157,7 @@ var _ = Describe("ReconcileCopy", func() {
 
 	When("validating target namespace", func() {
 		It("should skip reconcile when no marker found", func() {
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(logs.FilterMessageSnippet("Skip copy creation"))
 			Expect(reconcile.Result{}).To(Equal(result))
@@ -166,7 +166,7 @@ var _ = Describe("ReconcileCopy", func() {
 		It("should skip when no copyof annotation is present", func() {
 			quarksCopySecret.Annotations = map[string]string{}
 
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(logs.FilterMessageSnippet("Skip copy creation"))
 			Expect(reconcile.Result{}).To(Equal(result))
@@ -175,7 +175,7 @@ var _ = Describe("ReconcileCopy", func() {
 
 	When("everything is set properly", func() {
 		It("copying should be done", func() {
-			client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+			client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 				switch object := object.(type) {
 				case *qsv1a1.QuarksSecret:
 					if nn.Namespace == defaultNamespace {
@@ -195,7 +195,7 @@ var _ = Describe("ReconcileCopy", func() {
 				return nil
 			})
 
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client.GetCallCount()).To(Equal(5))
 			Expect(client.CreateCallCount()).To(Equal(1))

@@ -48,8 +48,8 @@ func AddQuarksSecretSecretMeta(ctx context.Context, config *config.Config, mgr m
 
 			if !reflect.DeepEqual(o.Spec.SecretLabels, n.Spec.SecretLabels) || !reflect.DeepEqual(o.Spec.SecretAnnotations, n.Spec.SecretAnnotations) {
 				ctxlog.NewPredicateEvent(e.ObjectNew).Debug(
-					ctx, e.MetaNew, "qsv1a1.QuarksSecret",
-					fmt.Sprintf("Update predicate passed for '%s/%s'.", e.MetaNew.GetNamespace(), e.MetaNew.GetName()),
+					ctx, e.ObjectNew, "qsv1a1.QuarksSecret",
+					fmt.Sprintf("Update predicate passed for '%s/%s'.", e.ObjectNew.GetNamespace(), e.ObjectNew.GetName()),
 				)
 				return true
 			}

@@ -69,7 +69,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 		}
 		generator = &generatorfakes.FakeGenerator{}
 		client = &cfakes.FakeClient{}
-		client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+		client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 			switch object := object.(type) {
 			case *qsv1a1.QuarksSecret:
 				qSecret.DeepCopyInto(object)
@@ -89,7 +89,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 	Context("if the resource can not be resolved", func() {
 		It("skips if the resource was not found", func() {
 			client.GetReturns(errors.NewNotFound(schema.GroupResource{}, "not found is requeued"))
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(reconcile.Result{}).To(Equal(result))
 		})
@@ -99,7 +99,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 		It("returns an error", func() {
 			qSecret.Spec.Type = "foo"
 
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("invalid type"))
 			Expect(reconcile.Result{}).To(Equal(result))
@@ -122,7 +122,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 				},
 			}
 
-			client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+			client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 				switch object := object.(type) {
 				case *qsv1a1.QuarksSecret:
 					qSecret.DeepCopyInto(object)
@@ -134,14 +134,14 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 				return nil
 			})
 
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client.CreateCallCount()).To(Equal(0))
 			Expect(reconcile.Result{}).To(Equal(result))
 		})
 
 		It("generates passwords", func() {
-			client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+			client.CreateCalls(func(context context.Context, object crc.Object, _ ...crc.CreateOption) error {
 				secret := object.(*corev1.Secret)
 				Expect(secret.StringData["password"]).To(Equal("securepassword"))
 				Expect(secret.GetName()).To(Equal("generated-secret"))
@@ -151,7 +151,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 				return nil
 			})
 
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client.CreateCallCount()).To(Equal(1))
 			Expect(reconcile.Result{}).To(Equal(result))
@@ -166,7 +166,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 		})
 
 		It("generates RSA keys", func() {
-			client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+			client.CreateCalls(func(context context.Context, object crc.Object, _ ...crc.CreateOption) error {
 				secret := object.(*corev1.Secret)
 				Expect(secret.StringData["private_key"]).To(Equal("private"))
 				Expect(secret.StringData["public_key"]).To(Equal("public"))
@@ -176,7 +176,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 				return nil
 			})
 
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client.CreateCallCount()).To(Equal(1))
 			Expect(reconcile.Result{}).To(Equal(result))
@@ -195,7 +195,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 		})
 
 		It("generates SSH keys", func() {
-			client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+			client.CreateCalls(func(context context.Context, object crc.Object, _ ...crc.CreateOption) error {
 				secret := object.(*corev1.Secret)
 				Expect(secret.StringData["private_key"]).To(Equal("private"))
 				Expect(secret.StringData["public_key"]).To(Equal("public"))
@@ -206,7 +206,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 				return nil
 			})
 
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client.CreateCallCount()).To(Equal(1))
 			Expect(reconcile.Result{}).To(Equal(result))
@@ -244,7 +244,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 				},
 			}
 
-			client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+			client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 				switch object := object.(type) {
 				case *qsv1a1.QuarksSecret:
 					qSecret.DeepCopyInto(object)
@@ -262,7 +262,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 		})
 
 		It("generates dockerConfigJson secret", func() {
-			client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+			client.CreateCalls(func(context context.Context, object crc.Object, _ ...crc.CreateOption) error {
 				secret := object.(*corev1.Secret)
 				Expect(secret.StringData[corev1.DockerConfigJsonKey]).
 					To(Equal("{\"auths\":{\"fake.registry\":{\"username\":\"fake-username\",\"password\":\"fake-password\",\"email\":\"fake-email\",\"auth\":\"ZmFrZS11c2VybmFtZTpmYWtlLXBhc3N3b3Jk\"}}}"))
@@ -271,7 +271,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 				return nil
 			})
 
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client.CreateCallCount()).To(Equal(1))
 			Expect(reconcile.Result{}).To(Equal(result))
@@ -290,7 +290,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 
 		Context("if the CA is not ready", func() {
 			It("requeues generation", func() {
-				result, err := reconciler.Reconcile(request)
+				result, err := reconciler.Reconcile(context.Background(), request)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(client.CreateCallCount()).To(Equal(0))
 				Expect(reconcile.Result{RequeueAfter: time.Second * 5}).To(Equal(result))
@@ -310,7 +310,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 					},
 				}
 
-				client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+				client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 					switch object := object.(type) {
 					case *qsv1a1.QuarksSecret:
 						qSecret.DeepCopyInto(object)
@@ -333,7 +333,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 
 						return credsgen.Certificate{Certificate: []byte("the_cert"), PrivateKey: []byte("private_key"), IsCA: false}, nil
 					})
-					client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+					client.CreateCalls(func(context context.Context, object crc.Object, _ ...crc.CreateOption) error {
 						secret := object.(*corev1.Secret)
 						Expect(secret.StringData["certificate"]).To(Equal("the_cert"))
 						Expect(secret.StringData["private_key"]).To(Equal("private_key"))
@@ -343,7 +343,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 						return nil
 					})
 
-					result, err := reconciler.Reconcile(request)
+					result, err := reconciler.Reconcile(context.Background(), request)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(client.CreateCallCount()).To(Equal(1))
 					Expect(reconcile.Result{}).To(Equal(result))
@@ -356,7 +356,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 						Expect(request.AlternativeNames).To(Equal([]string{"bar.com", "baz.com"}))
 						return credsgen.Certificate{Certificate: []byte("the_cert"), PrivateKey: []byte("private_key"), IsCA: false}, nil
 					})
-					client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+					client.CreateCalls(func(context context.Context, object crc.Object, _ ...crc.CreateOption) error {
 						secret := object.(*corev1.Secret)
 						Expect(secret.StringData["certificate"]).To(Equal("the_cert"))
 						Expect(secret.StringData["private_key"]).To(Equal("private_key"))
@@ -366,7 +366,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 						return nil
 					})
 
-					result, err := reconciler.Reconcile(request)
+					result, err := reconciler.Reconcile(context.Background(), request)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(client.CreateCallCount()).To(Equal(1))
 					Expect(reconcile.Result{}).To(Equal(result))
@@ -387,7 +387,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 						Expect(len(request.CA.PrivateKey) > 0).To(BeTrue())
 						return credsgen.Certificate{Certificate: []byte("the_cert"), PrivateKey: []byte("private_key"), IsCA: true}, nil
 					})
-					client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+					client.CreateCalls(func(context context.Context, object crc.Object, _ ...crc.CreateOption) error {
 						secret := object.(*corev1.Secret)
 						Expect(secret.StringData["certificate"]).To(Equal("the_cert"))
 						Expect(secret.StringData["private_key"]).To(Equal("private_key"))
@@ -397,7 +397,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 						return nil
 					})
 
-					result, err := reconciler.Reconcile(request)
+					result, err := reconciler.Reconcile(context.Background(), request)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(reconcile.Result{}).To(Equal(result))
 				})
@@ -421,7 +421,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 
 			Context("if the CA is not ready", func() {
 				It("requeues generation", func() {
-					result, err := reconciler.Reconcile(request)
+					result, err := reconciler.Reconcile(context.Background(), request)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(client.CreateCallCount()).To(Equal(0))
 					Expect(result.RequeueAfter).To(Equal(time.Second * 5))
@@ -450,7 +450,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 						},
 					}
 
-					client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+					client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 						switch object := object.(type) {
 						case *qsv1a1.QuarksSecret:
 							if nn.Name == "foo" {
@@ -478,7 +478,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 
 						return credsgen.Certificate{Certificate: []byte(generatedCert), PrivateKey: []byte(generatedPrivateKey), IsCA: false}, nil
 					})
-					client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+					client.CreateCalls(func(context context.Context, object crc.Object, _ ...crc.CreateOption) error {
 						secret := object.(*corev1.Secret)
 						Expect(secret.StringData["tls.crt"]).To(Equal(generatedCert))
 						Expect(secret.StringData["tls.key"]).To(Equal(generatedPrivateKey))
@@ -488,7 +488,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 						return nil
 					})
 
-					result, err := reconciler.Reconcile(request)
+					result, err := reconciler.Reconcile(context.Background(), request)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(client.CreateCallCount()).To(Equal(1))
 					Expect(result).To(Equal(reconcile.Result{}))
@@ -502,7 +502,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 			})
 
 			It("returns an error", func() {
-				_, err := reconciler.Reconcile(request)
+				_, err := reconciler.Reconcile(context.Background(), request)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("can't generate tls Type with cluster SignerType"))
 				Expect(client.CreateCallCount()).To(Equal(0))
@@ -516,39 +516,39 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 		})
 
 		It("creates a secret with k8s type basic-auth", func() {
-			client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+			client.CreateCalls(func(context context.Context, object crc.Object, _ ...crc.CreateOption) error {
 				secret := object.(*corev1.Secret)
 				Expect(secret.Type).To(Equal(corev1.SecretTypeBasicAuth))
 				return nil
 			})
 
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client.CreateCallCount()).To(Equal(1))
 			Expect(reconcile.Result{}).To(Equal(result))
 		})
 
 		It("creates a secret in the correct namespace", func() {
-			client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+			client.CreateCalls(func(context context.Context, object crc.Object, _ ...crc.CreateOption) error {
 				secret := object.(*corev1.Secret)
 				Expect(secret.Namespace).To(Equal(qSecret.Namespace))
 				return nil
 			})
 
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client.CreateCallCount()).To(Equal(1))
 			Expect(reconcile.Result{}).To(Equal(result))
 		})
 
 		It("creates a secret with the correct name", func() {
-			client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+			client.CreateCalls(func(context context.Context, object crc.Object, _ ...crc.CreateOption) error {
 				secret := object.(*corev1.Secret)
 				Expect(secret.Name).To(Equal(qSecret.Spec.SecretName))
 				return nil
 			})
 
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client.CreateCallCount()).To(Equal(1))
 			Expect(reconcile.Result{}).To(Equal(result))
@@ -558,7 +558,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 			It("returns an error message", func() {
 				client.CreateReturns(fmt.Errorf("something went terribly wrong"))
 
-				_, err := reconciler.Reconcile(request)
+				_, err := reconciler.Reconcile(context.Background(), request)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(Equal("generating basic-auth secret: could not create or update secret 'default/generated-secret': something went terribly wrong"))
 			})
@@ -566,7 +566,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 			It("does not requeue", func() {
 				client.CreateReturns(fmt.Errorf("something went terribly wrong"))
 
-				result, _ := reconciler.Reconcile(request)
+				result, _ := reconciler.Reconcile(context.Background(), request)
 				Expect(result.Requeue).To(BeFalse())
 			})
 		})
@@ -576,7 +576,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 				generator.GeneratePasswordReturnsOnCall(0, "some-secret-user")
 				generator.GeneratePasswordReturnsOnCall(1, "some-secret-password")
 
-				client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+				client.CreateCalls(func(context context.Context, object crc.Object, _ ...crc.CreateOption) error {
 					secret := object.(*corev1.Secret)
 					Expect(secret.Type).To(Equal(corev1.SecretTypeBasicAuth))
 					Expect(secret.StringData["username"]).To(Equal("some-secret-user"))
@@ -584,7 +584,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 					return nil
 				})
 
-				result, err := reconciler.Reconcile(request)
+				result, err := reconciler.Reconcile(context.Background(), request)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(generator.GeneratePasswordCallCount()).To(Equal(2))
 				Expect(client.CreateCallCount()).To(Equal(1))
@@ -597,7 +597,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 				qSecret.Spec.Request.BasicAuthRequest.Username = "some-passed-in-username"
 				generator.GeneratePasswordReturns("some-secret-password")
 
-				client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+				client.CreateCalls(func(context context.Context, object crc.Object, _ ...crc.CreateOption) error {
 					secret := object.(*corev1.Secret)
 					Expect(secret.Type).To(Equal(corev1.SecretTypeBasicAuth))
 					Expect(secret.StringData["username"]).To(Equal("some-passed-in-username"))
@@ -605,7 +605,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 					return nil
 				})
 
-				result, err := reconciler.Reconcile(request)
+				result, err := reconciler.Reconcile(context.Background(), request)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(generator.GeneratePasswordCallCount()).To(Equal(1))
 				Expect(client.CreateCallCount()).To(Equal(1))
@@ -635,7 +635,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 				},
 			}
 
-			client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+			client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 				switch object := object.(type) {
 				case *qsv1a1.QuarksSecret:
 					qSecret.DeepCopyInto(object)
@@ -653,7 +653,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 		})
 
 		It("Skips generation of a secret when existing secret has not `generated` label", func() {
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client.CreateCallCount()).To(Equal(0))
 			Expect(client.UpdateCallCount()).To(Equal(0))
@@ -664,7 +664,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 			qSecret.Spec.SecretLabels[qsv1a1.LabelKind] = qsv1a1.GeneratedSecretKind
 			secret.Labels = qSecret.Spec.SecretLabels
 
-			client.UpdateCalls(func(context context.Context, object runtime.Object, _ ...crc.UpdateOption) error {
+			client.UpdateCalls(func(context context.Context, object crc.Object, _ ...crc.UpdateOption) error {
 				switch object := object.(type) {
 				case *qsv1a1.QuarksSecret:
 					Expect(object.Status.Generated).To(Equal(true))
@@ -677,7 +677,7 @@ var _ = Describe("ReconcileQuarksSecret", func() {
 				return nil
 			})
 
-			result, err := reconciler.Reconcile(request)
+			result, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client.CreateCallCount()).To(Equal(0))
 			Expect(client.UpdateCallCount()).To(Equal(1))

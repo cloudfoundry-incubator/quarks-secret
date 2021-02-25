@@ -40,7 +40,7 @@ type ReconcileQuarksSecretSecretMeta struct {
 }
 
 // Reconcile applies the `SecretLabels` and `SecretAnnotations` from QuarksSecret to the generated Secret.
-func (r *ReconcileQuarksSecretSecretMeta) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileQuarksSecretSecretMeta) Reconcile(_ context.Context, request reconcile.Request) (reconcile.Result, error) {
 	quarksSecret := &qsv1a1.QuarksSecret{}
 
 	// Set the ctx to be Background, as the top-level context for incoming requests.

@@ -51,8 +51,8 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 			}
 			if len(secrets) == 0 {
 				ctxlog.NewPredicateEvent(e.Object).Debug(
-					ctx, e.Meta, "qsv1a1.QuarksSecret",
-					fmt.Sprintf("Create predicate passed for '%s/%s'", e.Meta.GetNamespace(), e.Meta.GetName()),
+					ctx, e.Object, "qsv1a1.QuarksSecret",
+					fmt.Sprintf("Create predicate passed for '%s/%s'", e.Object.GetNamespace(), e.Object.GetName()),
 				)
 				return true
 			}
@@ -72,8 +72,8 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 
 					if !reflect.DeepEqual(old.Interface(), new.Interface()) {
 						ctxlog.NewPredicateEvent(e.ObjectNew).Debug(
-							ctx, e.MetaNew, "qsv1a1.QuarksSecret",
-							fmt.Sprintf("Update predicate passed for '%s/%s'.", e.MetaNew.GetNamespace(), e.MetaNew.GetName()),
+							ctx, e.ObjectNew, "qsv1a1.QuarksSecret",
+							fmt.Sprintf("Update predicate passed for '%s/%s'.", e.ObjectNew.GetNamespace(), e.ObjectNew.GetName()),
 						)
 						return true
 					}
@@ -83,8 +83,8 @@ func AddQuarksSecret(ctx context.Context, config *config.Config, mgr manager.Man
 			// reconcile if it was already generated and controller requested update
 			if n.Status.NotGenerated() {
 				ctxlog.NewPredicateEvent(e.ObjectNew).Debug(
-					ctx, e.MetaNew, "qsv1a1.QuarksSecret",
-					fmt.Sprintf("Update predicate passed for '%s/%s': new object is not generated", e.MetaNew.GetNamespace(), e.MetaNew.GetName()),
+					ctx, e.ObjectNew, "qsv1a1.QuarksSecret",
+					fmt.Sprintf("Update predicate passed for '%s/%s': new object is not generated", e.ObjectNew.GetNamespace(), e.ObjectNew.GetName()),
 				)
 				return true
 			}

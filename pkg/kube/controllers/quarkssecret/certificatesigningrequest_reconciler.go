@@ -47,7 +47,7 @@ type ReconcileCertificateSigningRequest struct {
 }
 
 // Reconcile approves pending CSR and creates its certificate secret
-func (r *ReconcileCertificateSigningRequest) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileCertificateSigningRequest) Reconcile(_ context.Context, request reconcile.Request) (reconcile.Result, error) {
 	csr := &certv1.CertificateSigningRequest{}
 
 	// Set the ctx to be Background, as the top-level context for incoming requests.

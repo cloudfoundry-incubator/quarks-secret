@@ -11,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	crc "sigs.k8s.io/controller-runtime/pkg/client"
@@ -75,7 +74,7 @@ var _ = Describe("ReconcileQuarksSecretSecretMeta", func() {
 		}
 		generator = &generatorfakes.FakeGenerator{}
 		client = &cfakes.FakeClient{}
-		client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+		client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 			switch object := object.(type) {
 			case *qsv1a1.QuarksSecret:
 				qSecret.DeepCopyInto(object)
@@ -94,7 +93,7 @@ var _ = Describe("ReconcileQuarksSecretSecretMeta", func() {
 
 	Context("if the source secret is not found ", func() {
 		It("should return an error", func() {
-			_, err := reconciler.Reconcile(request)
+			_, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("could not fetch source secret"))
 		})
@@ -102,7 +101,7 @@ var _ = Describe("ReconcileQuarksSecretSecretMeta", func() {
 
 	Context("if the source secret is found", func() {
 		It("should have the correct labels", func() {
-			client.GetCalls(func(context context.Context, nn types.NamespacedName, object runtime.Object) error {
+			client.GetCalls(func(context context.Context, nn types.NamespacedName, object crc.Object) error {
 				switch object := object.(type) {
 				case *qsv1a1.QuarksSecret:
 					qSecret.DeepCopyInto(object)
@@ -112,7 +111,7 @@ var _ = Describe("ReconcileQuarksSecretSecretMeta", func() {
 				return nil
 			})
 
-			client.CreateCalls(func(context context.Context, object runtime.Object, _ ...crc.CreateOption) error {
+			client.CreateCalls(func(context context.Context, object crc.Object, _ ...crc.CreateOption) error {
 				secret := object.(*corev1.Secret)
 				Expect(secret.GetLabels()).To(Equal(map[string]string{
 					"LabelKey": "LabelValue",
@@ -120,7 +119,7 @@ var _ = Describe("ReconcileQuarksSecretSecretMeta", func() {
 				return nil
 			})
 
-			_, err := reconciler.Reconcile(request)
+			_, err := reconciler.Reconcile(context.Background(), request)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
