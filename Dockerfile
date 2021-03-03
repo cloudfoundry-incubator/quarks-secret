@@ -1,6 +1,6 @@
 ARG BASE_IMAGE=registry.opensuse.org/cloud/platform/quarks/sle_15_sp1/quarks-operator-base:latest
 
-FROM golang:1.14.7 AS build
+FROM golang:1.15.8 AS build
 ARG GOPROXY
 ENV GOPROXY $GOPROXY
 

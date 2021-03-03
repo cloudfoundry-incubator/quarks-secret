@@ -23,8 +23,8 @@ cloud.google.com/go/pubsub v1.2.0/go.mod h1:jhfEVHT8odbXTkndysNHCcx0awwzvfOlguIA
 cloud.google.com/go/storage v1.0.0/go.mod h1:IhtSnM/ZTZV8YYJWCY8RULGVqBDmpoyjwiyrjsg+URw=
 cloud.google.com/go/storage v1.5.0/go.mod h1:tpKbwo567HUNpVclU5sGELwQWBDZ8gh0ZeosJ0Rtdos=
 cloud.google.com/go/storage v1.6.0/go.mod h1:N7U0C8pVQ/+NIKOBQyamJIeKQKkZ+mxpohlUTyfDhBk=
-code.cloudfoundry.org/quarks-utils v0.0.2 h1:ONFYFBKo4saNKdTo8StcYo/71+3skCoj0fIakInHnbY=
-code.cloudfoundry.org/quarks-utils v0.0.2/go.mod h1:chUN4PKXqnLDSe6zkUvmR5RnjysI87arFtDME1xHP/k=
+code.cloudfoundry.org/quarks-utils v0.0.3-0.20210303091853-3b41f4b87e33 h1:q7wkmrNCtqL6cwjokMgnMt07b7vSWPIV0kwX4dDX+Wg=
+code.cloudfoundry.org/quarks-utils v0.0.3-0.20210303091853-3b41f4b87e33/go.mod h1:chUN4PKXqnLDSe6zkUvmR5RnjysI87arFtDME1xHP/k=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 github.com/Azure/azure-sdk-for-go v16.2.1+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
 github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78/go.mod h1:LmzpDX56iTiv29bbRTIsUNlaFfuhWRQBWjQdVyAevI8=
