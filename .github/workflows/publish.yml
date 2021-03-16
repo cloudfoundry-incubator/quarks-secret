@@ -58,6 +58,16 @@ jobs:
         image_name: "${{ env.DOCKER_IMAGE_REPOSITORY }}"
         image_tag: "${{ steps.prepare_version_env.outputs.version }}"
 
+    - name: Publish Lite Image
+      uses: whoan/docker-build-with-cache-action@v5
+      with:
+        username: cfcontainerizationbot
+        password: "${{ secrets.PERSONAL_ACCESS_TOKEN }}"
+        registry: "${{ env.DOCKER_IMAGE_ORG }}"
+        image_name: "${{ env.DOCKER_IMAGE_REPOSITORY }}"
+        image_tag: "${{ steps.prepare_version_env.outputs.version }}-lite"
+        build_extra_args: '{"--build-arg": "BASE_IMAGE=scratch"}'
+
     - name: Build Helm Chart
       run: |
         echo "Publish Helm Chart for $ARTIFACT_VERSION"
