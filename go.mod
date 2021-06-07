@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	code.cloudfoundry.org/quarks-utils v0.0.3-0.20210303091853-3b41f4b87e33
-	github.com/cloudflare/cfssl v1.4.1
+	github.com/cloudflare/cfssl v1.6.0
 	github.com/dchest/uniuri v0.0.0-20200228104902-7aecb25e1fe5
 	github.com/go-logr/logr v0.3.0
 	github.com/onsi/ginkgo v1.14.1
@@ -14,7 +14,7 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/viper v1.7.1
 	go.uber.org/zap v1.16.0
-	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
+	golang.org/x/crypto v0.0.0-20201124201722-c8d3bf9c5392
 	helm.sh/helm/v3 v3.3.0
 	k8s.io/api v0.20.2
 	k8s.io/apiextensions-apiserver v0.20.1
