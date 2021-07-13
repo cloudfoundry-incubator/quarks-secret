@@ -13,6 +13,9 @@ spec:
       labels:
         name: quarks-secret
     spec:
+      {{- if .Values.affinity }}
+      affinity: {{ .Values.affinity | toJson }}
+      {{- end }}
       serviceAccountName: {{ template "quarks-secret.serviceAccountName" . }}
       containers:
         - name: quarks-secret
