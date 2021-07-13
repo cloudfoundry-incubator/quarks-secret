@@ -57,3 +57,5 @@ global:
   # monitoredID is a string that has to match the content of the 'monitored' label in each monitored namespace.
   # The monitoredID helper uses the release fullname, unless this is set.
   monitoredID:
+  # Scheduling pod on specicifc nodes by adding labels to nodes
+affinity: {}
