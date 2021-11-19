@@ -23,4 +23,4 @@ require (
 	sigs.k8s.io/controller-runtime v0.8.2
 )
 
-replace code.cloudfoundry.org/quarks-utils => github.com/HCL-Cloud-Native-Labs/quarks-utils v0.0.2
+replace code.cloudfoundry.org/quarks-utils => github.com/HCL-Cloud-Native-Labs/quarks-utils v0.1.0
