@@ -7,14 +7,14 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"go.uber.org/zap"
-	certv1 "k8s.io/api/certificates/v1beta1"
+	certv1 "k8s.io/api/certificates/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	certv1clientfakes "k8s.io/client-go/kubernetes/typed/certificates/v1beta1/fake"
+	certv1clientfakes "k8s.io/client-go/kubernetes/typed/certificates/v1/fake"
 	ktesting "k8s.io/client-go/testing"
 	crc "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -39,7 +39,7 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 		log              *zap.SugaredLogger
 		config           *cfcfg.Config
 		client           *cfakes.FakeClient
-		certClient       *certv1clientfakes.FakeCertificatesV1beta1
+		certClient       *certv1clientfakes.FakeCertificatesV1
 		csr              *certv1.CertificateSigningRequest
 		privateKeySecret *corev1.Secret
 		qsec             *qsv1a1.QuarksSecret
@@ -111,7 +111,7 @@ var _ = Describe("ReconcileCertificateSigningRequest", func() {
 
 		manager.GetClientReturns(client)
 
-		certClient = &certv1clientfakes.FakeCertificatesV1beta1{
+		certClient = &certv1clientfakes.FakeCertificatesV1{
 			Fake: &ktesting.Fake{},
 		}
 	})
