@@ -46,7 +46,7 @@ $ helm delete quarks-secret --purge
 | `global.rbac.create`                              | Install required RBAC service account, roles and rolebindings                          | `true`                                         |
 | `serviceAccount.create`                           | If true, create a service account                                                      | `true`                                         |
 | `serviceAccount.name`                             | If not set and `create` is `true`, a name is generated using the fullname of the chart |                                                |
-
+| `affinity`                     |  Scheduling pod on specicifc nodes by adding labels to nodes                                      | `affinity`
 ## RBAC
 
 By default, the helm chart will install RBAC ClusterRole and ClusterRoleBinding based on the chart release name, it will also grant the ClusterRole to an specific service account, which have the same name of the chart release.

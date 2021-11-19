@@ -6,13 +6,13 @@ import (
 
 	"github.com/pkg/errors"
 
-	certv1 "k8s.io/api/certificates/v1beta1"
+	certv1 "k8s.io/api/certificates/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	certv1client "k8s.io/client-go/kubernetes/typed/certificates/v1beta1"
+	certv1client "k8s.io/client-go/kubernetes/typed/certificates/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -25,7 +25,7 @@ import (
 )
 
 // NewCertificateSigningRequestReconciler returns a new Reconciler
-func NewCertificateSigningRequestReconciler(ctx context.Context, config *config.Config, mgr manager.Manager, certClient certv1client.CertificatesV1beta1Interface, srf setReferenceFunc) reconcile.Reconciler {
+func NewCertificateSigningRequestReconciler(ctx context.Context, config *config.Config, mgr manager.Manager, certClient certv1client.CertificatesV1Interface, srf setReferenceFunc) reconcile.Reconciler {
 	return &ReconcileCertificateSigningRequest{
 		ctx:          ctx,
 		config:       config,
@@ -41,7 +41,7 @@ type ReconcileCertificateSigningRequest struct {
 	ctx          context.Context
 	config       *config.Config
 	client       client.Client
-	certClient   certv1client.CertificatesV1beta1Interface
+	certClient   certv1client.CertificatesV1Interface
 	scheme       *runtime.Scheme
 	setReference setReferenceFunc
 }
@@ -192,7 +192,7 @@ func (r *ReconcileCertificateSigningRequest) approveRequest(ctx context.Context,
 	})
 
 	ctxlog.Infof(ctx, "Approving CSR '%s'", csrName)
-	_, err = r.certClient.CertificateSigningRequests().UpdateApproval(ctx, csr, metav1.UpdateOptions{})
+	_, err = r.certClient.CertificateSigningRequests().UpdateApproval(ctx, csrName, csr, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "could not update approval of CSR '%s'", csrName)
 	}
