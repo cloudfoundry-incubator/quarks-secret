@@ -22,3 +22,5 @@ require (
 	k8s.io/client-go v0.20.2
 	sigs.k8s.io/controller-runtime v0.8.2
 )
+
+replace code.cloudfoundry.org/quarks-utils => github.com/HCL-Cloud-Native-Labs/quarks-utils v0.0.2
